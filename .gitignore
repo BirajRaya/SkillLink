@@ -1,0 +1,34 @@
+# Node.js dependencies
+node_modules/
+npm-debug.log
+
+# Frontend build
+/frontend/dist
+/frontend/build
+
+# Backend build
+/backend/dist
+/backend/build
+
+# Environment variables
+.env
+
+# Logs
+logs/
+*.log
+*.log.*
+
+# Editor config
+.vscode/
+.idea/
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# PostgreSQL files
+*.sql
+*.sqlite
+
+# TypeScript build files
+*.tsbuildinfo
