@@ -7,7 +7,7 @@ SkillLink serves as a bridge between talented professionals and those seeking th
 ## ⚡ Quick Start
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/skilllink.git
+git clone https://github.com/BirajRaya/SkillLink.git
 
 # Navigate to project directory
 cd skilllink
