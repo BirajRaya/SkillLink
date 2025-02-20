@@ -5,7 +5,62 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { User, Briefcase, Mail, Phone, MapPin, Lock, Upload } from 'lucide-react';
 import LockImage from '../../assets/image/signup.png';
+import axios from "axios";
+import { useState } from "react";
+
 const SignupPage = () => {
+
+  const [selectedRole, setSelectedRole] = useState("customer");
+
+  const [formData, setFormData] = useState({
+    fullName: "",
+    email: "",
+    password: "",
+    phone: "",
+    address: "",
+    profilePicture: null
+  });
+
+  const handleChange = (e) => {
+    const { id, value } = e.target;
+    setFormData({ ...formData, [id.includes("customer-") ? id.replace("customer-", "") : id.replace("vendor-", "")]: value });
+  };
+
+  const handleFileChange = (e) => {
+    setFormData({ ...formData, profilePicture: e.target.files[0].name});
+  };
+
+  const handleSubmitForSignup = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await axios.post("http://localhost:5000/signup", {
+        fullName: formData.fullName,
+        email: formData.email,
+        password: formData.password,
+        phone: formData.phone,
+        address: formData.address,
+        profilePicture: formData.profilePicture,
+        role: selectedRole == "customer" ? "user" : "vendor",
+      });
+      //Email validation  goes below.
+      console.log(response.data);
+    } catch (err) {
+      //add logic to display error messages to users.
+      console.log(err.response.data.message);
+    } finally {
+      console.log("Signup called completed");
+      setFormData({
+        fullName: "",
+        email: "",
+        password: "",
+        phone: "",
+        address: "",
+        profilePicture: null
+      });
+    }
+  };
+
+
   return (
     <div className="min-h-screen bg-gray-50 flex md-3">
       {/* Left Side - Illustration and Welcome */}
@@ -37,7 +92,7 @@ const SignupPage = () => {
 
           <Card className="border-none shadow-none">
             <CardContent className="p-0">
-              <Tabs defaultValue="customer" className="w-full">
+              <Tabs defaultValue="customer" className="w-full" onValueChange={setSelectedRole}>
                 <TabsList className="grid w-full grid-cols-2 mb-8">
                   <TabsTrigger value="customer" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
                     Customer
@@ -49,7 +104,7 @@ const SignupPage = () => {
 
                 {/* Customer Form */}
                 <TabsContent value="customer">
-                  <form className="space-y-4">
+                  <form className="space-y-4" onSubmit={handleSubmitForSignup}>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="customer-fullName">Full Name</Label>
@@ -59,6 +114,9 @@ const SignupPage = () => {
                             id="customer-fullName"
                             placeholder="Enter your full name"
                             className="pl-10"
+                            value={formData.fullName}
+                            onChange={handleChange}
+                            required
                           />
                         </div>
                       </div>
@@ -72,6 +130,9 @@ const SignupPage = () => {
                             type="email"
                             placeholder="Enter your email"
                             className="pl-10"
+                            value={formData.email}
+                            onChange={handleChange}
+                            required
                           />
                         </div>
                       </div>
@@ -87,6 +148,9 @@ const SignupPage = () => {
                             type="password"
                             placeholder="Create a password"
                             className="pl-10"
+                            value={formData.password}
+                            onChange={handleChange}
+                            required
                           />
                         </div>
                       </div>
@@ -99,6 +163,9 @@ const SignupPage = () => {
                             id="customer-phone"
                             placeholder="Enter your phone number"
                             className="pl-10"
+                            value={formData.phone}
+                            onChange={handleChange}
+                            required
                           />
                         </div>
                       </div>
@@ -112,6 +179,9 @@ const SignupPage = () => {
                           id="customer-address"
                           placeholder="Enter your address"
                           className="pl-10"
+                          value={formData.address}
+                          onChange={handleChange}
+                          required
                         />
                       </div>
                     </div>
@@ -124,7 +194,9 @@ const SignupPage = () => {
                           id="customer-profile"
                           type="file"
                           className="pl-10"
-                        />
+                          onChange={handleFileChange}
+                          required
+                          />
                       </div>
                     </div>
 
@@ -136,7 +208,7 @@ const SignupPage = () => {
 
                 {/* Vendor Form */}
                 <TabsContent value="vendor">
-                  <form className="space-y-4">
+                  <form className="space-y-4" onSubmit={handleSubmitForSignup}>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="vendor-fullName">Full Name</Label>
@@ -146,6 +218,9 @@ const SignupPage = () => {
                             id="vendor-fullName"
                             placeholder="Enter your full name"
                             className="pl-10"
+                            value={formData.fullName}
+                          onChange={handleChange}
+                          required
                           />
                         </div>
                       </div>
@@ -159,6 +234,9 @@ const SignupPage = () => {
                             type="email"
                             placeholder="Enter your email"
                             className="pl-10"
+                            value={formData.email}
+                          onChange={handleChange}
+                          required
                           />
                         </div>
                       </div>
@@ -174,6 +252,9 @@ const SignupPage = () => {
                             type="password"
                             placeholder="Create a password"
                             className="pl-10"
+                            value={formData.password}
+                          onChange={handleChange}
+                          required
                           />
                         </div>
                       </div>
@@ -186,6 +267,9 @@ const SignupPage = () => {
                             id="vendor-phone"
                             placeholder="Enter your phone number"
                             className="pl-10"
+                            value={formData.phone}
+                          onChange={handleChange}
+                          required
                           />
                         </div>
                       </div>
@@ -199,6 +283,9 @@ const SignupPage = () => {
                           id="vendor-address"
                           placeholder="Enter your address"
                           className="pl-10"
+                          value={formData.address}
+                          onChange={handleChange}
+                          required
                         />
                       </div>
                     </div>
@@ -211,6 +298,8 @@ const SignupPage = () => {
                           id="vendor-profile"
                           type="file"
                           className="pl-10"
+                          onChange={handleFileChange}
+                          required
                         />
                       </div>
                     </div>
