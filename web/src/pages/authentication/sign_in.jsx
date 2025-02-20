@@ -4,8 +4,42 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Mail, Lock, Briefcase } from "lucide-react";
 import LockImage from "../../assets/image/signup.png";
+import axios from "axios";
+import { useState } from "react";
 
 const SigninPage = () => {
+
+  const [formData, setFormData] = useState({
+      email: "",
+      password: ""
+    });
+
+    const handleChange = (e) => {
+      const { id, value } = e.target;
+      setFormData({ ...formData, [id]: value });
+    };
+
+  const handleSubmitForSignIn = async (e) => {
+      e.preventDefault();
+      try {
+        const response = await axios.post("http://localhost:5000/signin", {
+          email: formData.email,
+          password: formData.password
+        });
+      //redirection logic goes below.
+        console.log(response);
+      } catch (err) {
+        //add logic to display error messages to users.
+        console.log(err);
+      } finally {
+        console.log("Signin called completed");
+        setFormData({
+          email: "",
+          password: ""
+        })
+      }
+    };
+
   return (
     <div className="min-h-screen bg-gray-50 flex md-3">
       {/* Left Side - Illustration and Welcome */}
@@ -33,12 +67,16 @@ const SigninPage = () => {
 
           <Card className="border-none shadow-none">
             <CardContent className="p-0">
-              <form className="space-y-4">
+              <form className="space-y-4"  onSubmit={handleSubmitForSignIn}>
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input id="email" type="email" placeholder="Enter your email" className="pl-10" />
+                    <Input id="email" type="email" placeholder="Enter your email" className="pl-10"
+                     value={formData.email}
+                     onChange={handleChange}
+                     required
+                     />
                   </div>
                 </div>
 
@@ -46,7 +84,11 @@ const SigninPage = () => {
                   <Label htmlFor="password">Password</Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input id="password" type="password" placeholder="Enter your password" className="pl-10" />
+                    <Input id="password" type="password" placeholder="Enter your password" className="pl-10" 
+                    value={formData.password}
+                    onChange={handleChange}
+                    required
+                    />
                   </div>
                 </div>
 
