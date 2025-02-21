@@ -2,50 +2,58 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Mail, Lock, Briefcase } from "lucide-react";
+import { Mail, Lock, Briefcase, Loader2 } from "lucide-react";
 import LockImage from "../../assets/image/signup.png";
 import axios from "axios";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const SigninPage = () => {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const [formData, setFormData] = useState({
-      email: "",
-      password: ""
-    });
+    email: "",
+    password: ""
+  });
 
-    const handleChange = (e) => {
-      const { id, value } = e.target;
-      setFormData({ ...formData, [id]: value });
-    };
+  const handleChange = (e) => {
+    const { id, value } = e.target;
+    setFormData({ ...formData, [id]: value });
+  };
 
   const handleSubmitForSignIn = async (e) => {
-      e.preventDefault();
-      try {
-        const response = await axios.post("http://localhost:5000/signin", {
-          email: formData.email,
-          password: formData.password
-        });
-      //redirection logic goes below.
-        console.log(response);
-      } catch (err) {
-        //add logic to display error messages to users.
-        console.log(err);
-      } finally {
-        console.log("Signin called completed");
-        setFormData({
-          email: "",
-          password: ""
-        })
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await axios.post("http://localhost:5000/signin", {
+        email: formData.email,
+        password: formData.password
+      });
+
+      console.log('Login response:', response.data);
+
+      if (response.data.token) {
+        localStorage.setItem('token', response.data.token);
+        navigate('/dashboard');
       }
-    };
+    } catch (err) {
+      console.error('Login error:', err);
+      setError(err.response?.data?.message || "Invalid email or password");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex md-3">
       {/* Left Side - Illustration and Welcome */}
       <div className="hidden lg:flex lg:w-1/2 p-12 flex-col justify-center items-center">
         <div className="max-w-lg">
-          <img src={LockImage} className="w-full h-auto mb-8" />
+          <img src={LockImage} className="w-full h-auto mb-8" alt="Welcome" />
           <div className="flex items-center justify-center mb-8">
             <Briefcase className="h-8 w-8 text-blue-600" />
             <span className="ml-2 text-2xl font-bold">SkillLink</span>
@@ -63,20 +71,29 @@ const SigninPage = () => {
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-gray-900">Sign In</h2>
             <p className="mt-2 text-gray-600">Enter your credentials to continue</p>
+            {error && (
+              <div className="mt-4 bg-red-50 text-red-600 p-3 rounded-md text-sm">
+                {error}
+              </div>
+            )}
           </div>
 
           <Card className="border-none shadow-none">
             <CardContent className="p-0">
-              <form className="space-y-4"  onSubmit={handleSubmitForSignIn}>
+              <form className="space-y-4" onSubmit={handleSubmitForSignIn}>
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input id="email" type="email" placeholder="Enter your email" className="pl-10"
-                     value={formData.email}
-                     onChange={handleChange}
-                     required
-                     />
+                    <Input 
+                      id="email" 
+                      type="email" 
+                      placeholder="Enter your email" 
+                      className="pl-10"
+                      value={formData.email}
+                      onChange={handleChange}
+                      required
+                    />
                   </div>
                 </div>
 
@@ -84,19 +101,35 @@ const SigninPage = () => {
                   <Label htmlFor="password">Password</Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input id="password" type="password" placeholder="Enter your password" className="pl-10" 
-                    value={formData.password}
-                    onChange={handleChange}
-                    required
+                    <Input 
+                      id="password" 
+                      type="password" 
+                      placeholder="Enter your password" 
+                      className="pl-10"
+                      value={formData.password}
+                      onChange={handleChange}
+                      required
                     />
                   </div>
                 </div>
 
-                <Button className="w-full bg-blue-600 hover:bg-blue-700">Sign In</Button>
+                <Button 
+                  className="w-full bg-blue-600 hover:bg-blue-700"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Signing in...
+                    </>
+                  ) : (
+                    "Sign In"
+                  )}
+                </Button>
               </form>
               <div className="mt-6 text-center text-gray-600">
-                Don&apos;t have an account? {" "}
-                <a href="/register" className="text-blue-600 hover:underline font-medium">
+                Don&apos;t have an account?{" "}
+                <a href="/signup" className="text-blue-600 hover:underline font-medium">
                   Sign up
                 </a>
               </div>

@@ -16,6 +16,7 @@ function App() {
         <Route index element={<LandingPage />} />  {/* Default route */}
         <Route path="/register" element={<SignupPage />} />
         <Route path="/login" element={<SignInPage />} />
+        
       </Route>
     </Routes>
   </Router>
