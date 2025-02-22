@@ -3,23 +3,25 @@ const router = express.Router();
 
 const { 
   signup, 
+  signin,
   verifyEmail, 
   resendVerification,
-  checkVerification 
-} = require('../controllers/authController');
+} = require('../controllers/auth/authController'); 
 
 // Middleware to handle async route handlers
 const asyncHandler = (fn) => (req, res, next) => {
+  // Only call next if the function is valid and returns a promise
   Promise.resolve(fn(req, res, next)).catch(next);
 };
 
 // Signup Route
 router.post('/signup', asyncHandler(signup));
 
+// SignIn Route
+router.post('/signin', asyncHandler(signin));
 
 // Email Verification Routes
 router.post('/verify-email', asyncHandler(verifyEmail));
-router.get('/check-verification/:email', asyncHandler(checkVerification));
 router.post('/resend-verification', asyncHandler(resendVerification));
 
 // Global error handler
