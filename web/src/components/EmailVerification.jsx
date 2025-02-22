@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import PropTypes from 'prop-types';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -6,30 +7,35 @@ import { Loader2 } from "lucide-react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
-const EmailVerification = ({ email, onSuccess }) => {
+const EmailVerification = ({ email }) => {
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [resending, setResending] = useState(false);
+  const [resendTimeout, setResendTimeout] = useState(0);
   const navigate = useNavigate();
 
-  // Check verification status on mount
   useEffect(() => {
-    const checkVerification = async () => {
-      try {
-        const response = await axios.get(`http://localhost:5000/check-verification/${email}`);
-        if (response.data.isVerified) {
-          navigate('/login');
-        }
-      } catch (err) {
-        console.error('Error checking verification status:', err);
-      }
-    };
-    checkVerification();
-  }, [email, navigate]);
+    let timer;
+    if (resendTimeout > 0) {
+      timer = setTimeout(() => setResendTimeout(t => t - 1), 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [resendTimeout]);
+
+  const handleCodeChange = (e) => {
+    const value = e.target.value.replace(/[^0-9]/g, '');
+    if (value.length <= 6) {
+      setCode(value);
+    }
+  };
 
   const handleVerify = async (e) => {
     e.preventDefault();
+    if (code.length !== 6) {
+      setError("Please enter a valid 6-digit code");
+      return;
+    }
     setLoading(true);
     setError("");
 
@@ -63,15 +69,16 @@ const EmailVerification = ({ email, onSuccess }) => {
   };
 
   const handleResend = async () => {
+    if (resendTimeout > 0) return;
     setResending(true);
     setError("");
 
     try {
-      const response = await axios.post("http://localhost:5000/resend-verification", {
+      await axios.post("http://localhost:5000/resend-verification", {
         email
       });
-
       setCode("");
+      setResendTimeout(60);
       setError("✉️ New verification code sent to your email");
     } catch (err) {
       setError(
@@ -97,10 +104,12 @@ const EmailVerification = ({ email, onSuccess }) => {
             <Input
               type="text"
               value={code}
-              onChange={(e) => setCode(e.target.value)}
+              onChange={handleCodeChange}
               placeholder="Enter 6-digit code"
               className="text-center text-2xl py-6 tracking-widest"
               maxLength={6}
+              pattern="[0-9]*"
+              inputMode="numeric"
               autoFocus
               required
             />
@@ -137,7 +146,7 @@ const EmailVerification = ({ email, onSuccess }) => {
                 type="button"
                 variant="link"
                 onClick={handleResend}
-                disabled={loading || resending}
+                disabled={loading || resending || resendTimeout > 0}
                 className="text-sm text-blue-600"
               >
                 {resending ? (
@@ -145,6 +154,8 @@ const EmailVerification = ({ email, onSuccess }) => {
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Sending...
                   </>
+                ) : resendTimeout > 0 ? (
+                  `Resend code in ${resendTimeout}s`
                 ) : (
                   "Resend Code"
                 )}
@@ -155,6 +166,11 @@ const EmailVerification = ({ email, onSuccess }) => {
       </Card>
     </div>
   );
+};
+
+EmailVerification.propTypes = {
+  email: PropTypes.string.isRequired,
+  onSuccess: PropTypes.func
 };
 
 export default EmailVerification;

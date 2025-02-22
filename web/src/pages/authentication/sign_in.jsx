@@ -7,12 +7,12 @@ import LockImage from "../../assets/image/signup.png";
 import axios from "axios";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { jwtDecode } from "jwt-decode";
 
 const SigninPage = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
   const [formData, setFormData] = useState({
     email: "",
     password: ""
@@ -37,8 +37,21 @@ const SigninPage = () => {
       console.log('Login response:', response.data);
 
       if (response.data.token) {
+        // Save token in localStorage
         localStorage.setItem('token', response.data.token);
-        navigate('/dashboard');
+
+        // Decode the token to get user role
+        const decodedToken = jwtDecode(response.data.token);
+        const userRole = decodedToken.role; // Assuming role is in the token
+
+        // Redirect based on user role
+        if (userRole === "admin") {
+          navigate('/admin-dashboard');
+        } else if (userRole === "vendor") {
+          navigate('/vendor-dashboard');
+        } else {
+          navigate('/user-dashboard');
+        }
       }
     } catch (err) {
       console.error('Login error:', err);
@@ -129,7 +142,7 @@ const SigninPage = () => {
               </form>
               <div className="mt-6 text-center text-gray-600">
                 Don&apos;t have an account?{" "}
-                <a href="/signup" className="text-blue-600 hover:underline font-medium">
+                <a href="/register" className="text-blue-600 hover:underline font-medium">
                   Sign up
                 </a>
               </div>
