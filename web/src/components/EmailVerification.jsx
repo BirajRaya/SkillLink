@@ -1,176 +1,184 @@
-import { useState, useEffect } from "react";
-import PropTypes from 'prop-types';
+import { useState, useRef } from 'react';
+import axios from 'axios';
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
-import axios from "axios";
-import { useNavigate } from "react-router-dom";
+import { Mail } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const EmailVerification = ({ email }) => {
-  const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [resending, setResending] = useState(false);
-  const [resendTimeout, setResendTimeout] = useState(0);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [otp, setOtp] = useState(['', '', '', '', '', '']); // 6 digits OTP
+  const inputRefs = useRef([]);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    let timer;
-    if (resendTimeout > 0) {
-      timer = setTimeout(() => setResendTimeout(t => t - 1), 1000);
-    }
-    return () => clearTimeout(timer);
-  }, [resendTimeout]);
+  // Handle OTP input change
+  const handleOtpChange = (index, value) => {
+    // Only allow numbers
+    if (value && !/^\d+$/.test(value)) return;
 
-  const handleCodeChange = (e) => {
-    const value = e.target.value.replace(/[^0-9]/g, '');
-    if (value.length <= 6) {
-      setCode(value);
+    const newOtp = [...otp];
+    newOtp[index] = value;
+    setOtp(newOtp);
+
+    // Move to next input if value is entered
+    if (value && index < 5) {
+      inputRefs.current[index + 1].focus();
     }
   };
 
-  const handleVerify = async (e) => {
+  // Handle paste functionality
+  const handlePaste = (e) => {
     e.preventDefault();
-    if (code.length !== 6) {
-      setError("Please enter a valid 6-digit code");
-      return;
-    }
-    setLoading(true);
-    setError("");
+    const pastedData = e.clipboardData.getData('text').trim();
+    
+    // Check if pasted content contains only numbers
+    if (!/^\d+$/.test(pastedData)) return;
 
+    const digits = pastedData.slice(0, 6).split('');
+    const newOtp = [...otp];
+    
+    digits.forEach((digit, index) => {
+      if (index < 6) newOtp[index] = digit;
+    });
+
+    setOtp(newOtp);
+
+    // Focus the next empty input or the last input if all are filled
+    const nextEmptyIndex = newOtp.findIndex(digit => !digit);
+    if (nextEmptyIndex !== -1) {
+      inputRefs.current[nextEmptyIndex].focus();
+    } else if (digits.length > 0) {
+      inputRefs.current[5].focus();
+    }
+  };
+
+  // Handle backspace
+  const handleKeyDown = (index, e) => {
+    if (e.key === 'Backspace' && !otp[index] && index > 0) {
+      inputRefs.current[index - 1].focus();
+    }
+  };
+
+  const handleVerifyEmail = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    const verificationCode = otp.join('');
+    
     try {
-      console.log('Attempting verification:', { email, code });
-      
-      const response = await axios.post("http://localhost:5000/verify-email", {
+      const response = await axios.post('http://localhost:5000/verify-email', {
         email,
-        code: code.trim()
+        code: verificationCode
       });
 
-      console.log('Verification response:', response.data);
-
-      if (response.data.token) {
-        localStorage.setItem('token', response.data.token);
-        setError("✅ Verification successful! Redirecting to login...");
+      if (response.status === 200) {
+        setSuccess(true);
         setTimeout(() => {
           navigate('/login');
-        }, 1500);
+        }, 2000);
       }
-      
-    } catch (err) {
-      console.error('Verification error:', err.response?.data || err);
-      setError(
-        err.response?.data?.message || 
-        "Verification failed. Please try again."
-      );
+    } catch (error) {
+      setError(error.response?.data?.message || 'Verification failed');
+      // Clear OTP on error
+      setOtp(['', '', '', '', '', '']);
+      inputRefs.current[0].focus();
     } finally {
       setLoading(false);
     }
   };
 
-  const handleResend = async () => {
-    if (resendTimeout > 0) return;
-    setResending(true);
-    setError("");
+  const handleResendCode = async () => {
+    setResendLoading(true);
+    setError('');
 
     try {
-      await axios.post("http://localhost:5000/resend-verification", {
+      const response = await axios.post('http://localhost:5000/resend-verification', {
         email
       });
-      setCode("");
-      setResendTimeout(60);
-      setError("✉️ New verification code sent to your email");
-    } catch (err) {
-      setError(
-        err.response?.data?.message || 
-        "Failed to resend code. Please try again."
-      );
+
+      if (response.status === 200) {
+        setError(''); // Clear any existing errors
+        // Clear existing OTP
+        setOtp(['', '', '', '', '', '']);
+        inputRefs.current[0].focus();
+      }
+    } catch (error) {
+      setError(error.response?.data?.message || 'Failed to resend code');
     } finally {
-      setResending(false);
+      setResendLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardContent className="p-6">
-          <h2 className="text-2xl font-bold text-center mb-4">Verify Your Email</h2>
-          <p className="text-gray-600 text-center mb-6">
-            Please enter the verification code sent to<br />
-            <strong className="text-blue-600">{email}</strong>
+    <Card className="w-[400px]">
+      <CardContent className="pt-6">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="bg-blue-100 p-3 rounded-full">
+            <Mail className="h-6 w-6 text-blue-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-center">Verify your email</h2>
+          <p className="text-gray-600 text-center">
+            We've sent a verification code to<br />
+            <span className="font-medium text-gray-900">{email}</span>
           </p>
 
-          <form onSubmit={handleVerify} className="space-y-4">
-            <Input
-              type="text"
-              value={code}
-              onChange={handleCodeChange}
-              placeholder="Enter 6-digit code"
-              className="text-center text-2xl py-6 tracking-widest"
-              maxLength={6}
-              pattern="[0-9]*"
-              inputMode="numeric"
-              autoFocus
-              required
-            />
+          {error && (
+            <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm w-full">
+              {error}
+            </div>
+          )}
 
-            {error && (
-              <p className={`text-sm text-center ${
-                error.includes("successful") || error.includes("✅") 
-                  ? "text-green-600" 
-                  : error.includes("sent") || error.includes("✉️")
-                    ? "text-blue-600"
-                    : "text-red-500"
-              } bg-opacity-10 p-3 rounded`}>
-                {error}
-              </p>
+          <form onSubmit={handleVerifyEmail} className="w-full space-y-4">
+            <div className="flex justify-center gap-2">
+              {otp.map((digit, index) => (
+                <input
+                  key={index}
+                  ref={el => inputRefs.current[index] = el}
+                  type="text"
+                  maxLength={1}
+                  value={digit}
+                  onChange={(e) => handleOtpChange(index, e.target.value)}
+                  onKeyDown={(e) => handleKeyDown(index, e)}
+                  onPaste={handlePaste}
+                  className="w-12 h-12 text-center text-lg border rounded-md focus:outline-none focus:border-blue-500"
+                  required
+                />
+              ))}
+            </div>
+
+            {success && (
+              <div className="bg-green-50 text-green-600 p-3 rounded-md text-sm text-center">
+                Email verified successfully! Redirecting to login page...
+              </div>
             )}
 
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               className="w-full bg-blue-600 hover:bg-blue-700"
-              disabled={loading || resending || code.length !== 6}
+              disabled={loading || success || otp.some(digit => !digit)}
             >
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Verifying...
-                </>
-              ) : (
-                "Verify Email"
-              )}
+              {loading ? 'Verifying...' : 'Verify Email'}
             </Button>
-
-            <div className="text-center mt-4">
-              <Button
-                type="button"
-                variant="link"
-                onClick={handleResend}
-                disabled={loading || resending || resendTimeout > 0}
-                className="text-sm text-blue-600"
-              >
-                {resending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Sending...
-                  </>
-                ) : resendTimeout > 0 ? (
-                  `Resend code in ${resendTimeout}s`
-                ) : (
-                  "Resend Code"
-                )}
-              </Button>
-            </div>
           </form>
-        </CardContent>
-      </Card>
-    </div>
-  );
-};
 
-EmailVerification.propTypes = {
-  email: PropTypes.string.isRequired,
-  onSuccess: PropTypes.func
+          <div className="text-sm text-center">
+            <span className="text-gray-600">Didn't receive the code? </span>
+            <button
+              onClick={handleResendCode}
+              disabled={resendLoading || success}
+              className="text-blue-600 hover:underline font-medium disabled:opacity-50"
+            >
+              {resendLoading ? 'Sending...' : 'Resend'}
+            </button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
 };
 
 export default EmailVerification;

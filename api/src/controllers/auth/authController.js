@@ -22,8 +22,6 @@ const pool = new Pool({
 
 /**
  * Handle user registration
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
  */
 const signup = async (req, res) => {
   const client = await pool.connect();
@@ -31,21 +29,21 @@ const signup = async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    // Validate input
-    const validationErrors = validateSignupInput(req.body);
-    if (validationErrors.length > 0) {
+    // First check password length
+    if (req.body.password.length < 7) {
       await client.query('ROLLBACK');
       return res.status(400).json({ 
-        message: 'Validation Failed',
-        errors: validationErrors
+        message: 'Please lengthen this password to 7 characters long'
       });
     }
 
-    // Check if email exists in main users table
-    const emailCheck = await findUserByEmail(client, req.body.email);
-    if (emailCheck.rows.length > 0) {
+    // Check if email exists in main users table only
+    const existingUser = await findUserByEmail(client, req.body.email);
+    if (existingUser.rows.length > 0) {
       await client.query('ROLLBACK');
-      return res.status(400).json({ message: 'Email already registered' });
+      return res.status(400).json({ 
+        message: 'This email is already registered. Please use a different email.'
+      });
     }
 
     // Generate verification code
@@ -58,11 +56,16 @@ const signup = async (req, res) => {
     const hashedPassword = await bcrypt.hash(req.body.password, salt);
 
     // Prepare user data
+    // Prepare user data
     const userData = {
       id: uuidv4(),
-      ...req.body,
+      fullName: req.body.fullName,
+      email: req.body.email,
       hashedPassword,
-      profilePictureUrl: req.body.profilePicture ? `/uploads/${req.body.profilePicture}` : null,
+      phone: req.body.phone,
+      address: req.body.address,
+      profilePicture: req.body.profilePicture ? `/uploads/${req.body.profilePicture}` : null,
+      role: req.body.role || 'user',
       verificationCode,
       verificationExpiry
     };
@@ -72,9 +75,7 @@ const signup = async (req, res) => {
     await client.query('COMMIT');
 
     // Send verification email
-    await sendVerificationEmail(req.body.email, verificationCode).catch(error => {
-      console.error('Verification Email Sending Failed:', error);
-    });
+    await sendVerificationEmail(req.body.email, verificationCode);
 
     res.status(201).json({
       message: 'Registration initiated. Please check your email for verification code.',
@@ -84,17 +85,15 @@ const signup = async (req, res) => {
 
   } catch (error) {
     await client.query('ROLLBACK');
-    throw error;
+    console.error('Signup error:', error);
+    res.status(500).json({ message: 'An error occurred during registration' });
   } finally {
     client.release();
   }
 };
 
-
 /**
  * Handle user sign-in
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
  */
 const signin = async (req, res) => {
   const client = await pool.connect();
@@ -103,12 +102,6 @@ const signin = async (req, res) => {
     await client.query('BEGIN');
 
     const { email, password } = req.body;
-
-    // Validate input (check for missing fields)
-    if (!email || !password) {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ message: 'Email and password are required' });
-    }
 
     // Check if user exists in the main users table
     const userCheck = await findUserByEmail(client, email);
@@ -135,7 +128,6 @@ const signin = async (req, res) => {
 
     await client.query('COMMIT');
 
-    // Send response with token and user info
     res.status(200).json({
       message: 'Sign-in successful',
       token,
@@ -156,53 +148,27 @@ const signin = async (req, res) => {
   }
 };
 
-module.exports = {
-  signin
-};
-
-
-
 /**
  * Handle email verification
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
  */
 const verifyEmail = async (req, res) => {
-  console.log('Verification request:', req.body);
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     
     const { email, code } = req.body;
 
-    // Add debugging logs
-    console.log('Verification attempt:', { email, code });
-
-    // Check temporary user and verification data with debug info
+    // Check temporary user and verification data
     const tempUserCheck = await findTempUserByEmail(client, email);
-    console.log('Raw temp user data:', tempUserCheck.rows[0]);
-    console.log('Current server time:', new Date());
-    console.log('Verification expiry:', tempUserCheck.rows[0]?.verification_code_expires_at);
-
+    
     if (tempUserCheck.rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(400).json({ 
-        message: 'No pending verification found or code expired',
-        debug: { 
-          time: new Date(),
-          foundRows: tempUserCheck.rows.length
-        }
+        message: 'No pending verification found'
       });
     }
 
     const tempUserData = tempUserCheck.rows[0];
-
-    // Add code comparison debug
-    console.log('Code comparison:', {
-      provided: code,
-      stored: tempUserData.verification_code,
-      matches: tempUserData.verification_code === code
-    });
 
     // Validate verification code
     if (tempUserData.verification_code !== code) {
@@ -210,21 +176,19 @@ const verifyEmail = async (req, res) => {
       return res.status(400).json({ message: 'Invalid verification code' });
     }
 
+    // Check if code is expired
+    if (new Date() > new Date(tempUserData.verification_code_expires_at)) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ message: 'Verification code has expired' });
+    }
+
     // Move user from temporary to main table
     const result = await moveTempUserToMain(client, email);
     
-    // Generate JWT
-    const token = jwt.sign(
-      { userId: result.rows[0].id, email },
-      process.env.JWT_SECRET,
-      { expiresIn: '24h' }
-    );
-
     await client.query('COMMIT');
 
     res.status(200).json({
       message: 'Email verified successfully',
-      token,
       user: {
         id: result.rows[0].id,
         email,
@@ -234,9 +198,9 @@ const verifyEmail = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Verification error details:', error);
     await client.query('ROLLBACK');
-    throw error;
+    console.error('Verification error:', error);
+    res.status(500).json({ message: 'An error occurred during verification' });
   } finally {
     client.release();
   }
@@ -244,8 +208,6 @@ const verifyEmail = async (req, res) => {
 
 /**
  * Resend verification code
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
  */
 const resendVerification = async (req, res) => {
   const client = await pool.connect();
@@ -278,7 +240,8 @@ const resendVerification = async (req, res) => {
 
   } catch (error) {
     await client.query('ROLLBACK');
-    throw error;
+    console.error('Resend verification error:', error);
+    res.status(500).json({ message: 'An error occurred while resending verification code' });
   } finally {
     client.release();
   }
