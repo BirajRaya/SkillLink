@@ -4,8 +4,10 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { User, Briefcase, Mail, Phone, MapPin, Lock, Upload, Loader2 } from 'lucide-react';
-import EmailVerification from '../../components/EmailVerification';import axios from "axios";
+import { User, Briefcase, Mail, Phone, MapPin, Lock, Upload, Eye, EyeOff } from 'lucide-react';
+import EmailVerification from '../../components/EmailVerification';
+import { toast } from "@/hooks/use-toast";
+import axios from "axios";
 import LockImage from '@/assets/image/signup.png';
 
 const SignupPage = () => {
@@ -14,6 +16,7 @@ const SignupPage = () => {
   const [error, setError] = useState("");
   const [showVerification, setShowVerification] = useState(false);
   const [userEmail, setUserEmail] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -26,9 +29,10 @@ const SignupPage = () => {
 
   const handleChange = (e) => {
     const { id, value } = e.target;
+    const field = id.replace(`${selectedRole}-`, "");
     setFormData({ 
       ...formData, 
-      [id.replace(`${selectedRole}-`, "")]: value 
+      [field]: value 
     });
   };
 
@@ -38,17 +42,54 @@ const SignupPage = () => {
     }
   };
 
+  const validateForm = () => {
+    // Name validation (letters and spaces only)
+    if (!/^[A-Za-z\s]+$/.test(formData.fullName)) {
+      setError("Name should contain only letters");
+      toast({
+        title: "Validation Error",
+        description: "Name should contain only letters",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    // Password validation
+    if (formData.password.length < 7) {
+      setError("Password must be at least 7 characters long");
+      toast({
+        title: "Validation Error",
+        description: "Please lengthen this password to 7 characters long",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    // Phone number validation (exactly 10 digits)
+    if (!/^\d{10}$/.test(formData.phone)) {
+      setError("Phone number must be exactly 10 digits");
+      toast({
+        title: "Validation Error",
+        description: "Phone number must be exactly 10 digits",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    return true;
+  };
+
   const handleSubmitForSignup = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setError("");
 
-    try {
-      console.log('Submitting signup form:', {
-        ...formData,
-        role: selectedRole === "customer" ? "user" : "vendor"
-      });
+    if (!validateForm()) {
+      return;
+    }
 
+    setLoading(true);
+
+    try {
       const response = await axios.post("http://localhost:5000/signup", {
         fullName: formData.fullName,
         email: formData.email,
@@ -59,8 +100,6 @@ const SignupPage = () => {
         role: selectedRole === "customer" ? "user" : "vendor",
       });
 
-      console.log('Signup response:', response.data);
-
       if (response.data.requiresVerification) {
         setUserEmail(formData.email);
         setShowVerification(true);
@@ -68,7 +107,11 @@ const SignupPage = () => {
       
     } catch (err) {
       console.error('Signup error:', err.response?.data || err);
-      setError(err.response?.data?.message || "Registration failed");
+      const errorMessage = err.response?.data?.message || 
+                          (Array.isArray(err.response?.data?.errors) ? 
+                          err.response.data.errors.join(', ') : 
+                          "Registration failed");
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -80,8 +123,15 @@ const SignupPage = () => {
         <EmailVerification 
           email={userEmail}
           onSuccess={() => {
-            setShowVerification(false);
-            window.location.href = "/login";
+            toast({
+              title: "Success",
+              description: "Email verified successfully! Redirecting to login page...",
+              variant: "default",
+            });
+            // Add a slight delay before redirecting
+            setTimeout(() => {
+              window.location.href = "/login";
+            }, 2000); // 2 seconds delay
           }}
         />
       </div>
@@ -137,7 +187,7 @@ const SignupPage = () => {
                     <form className="space-y-4" onSubmit={handleSubmitForSignup}>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor={`${role}-fullName`}>Full Name</Label>
+                          <Label htmlFor={`${role}-fullName`}>Full Name*</Label>
                           <div className="relative">
                             <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                             <Input 
@@ -146,13 +196,15 @@ const SignupPage = () => {
                               className="pl-10"
                               value={formData.fullName}
                               onChange={handleChange}
+                              pattern="[A-Za-z\s]+"
+                              title="Enter Letters Only"
                               required
                             />
                           </div>
                         </div>
 
                         <div className="space-y-2">
-                          <Label htmlFor={`${role}-email`}>Email</Label>
+                          <Label htmlFor={`${role}-email`}>Email*</Label>
                           <div className="relative">
                             <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                             <Input 
@@ -170,31 +222,41 @@ const SignupPage = () => {
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor={`${role}-password`}>Password</Label>
+                          <Label htmlFor={`${role}-password`}>Password*</Label>
                           <div className="relative">
                             <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                             <Input 
                               id={`${role}-password`}
-                              type="password"
-                              placeholder="Create a password"
-                              className="pl-10"
+                              type={showPassword ? "text" : "password"}
+                              placeholder="Create a password(Min 7 char)"
+                              className="pl-10 pr-10"
                               value={formData.password}
                               onChange={handleChange}
                               required
+                              minLength={7}
                             />
+                            <button 
+                              type="button"
+                              onClick={() => setShowPassword(!showPassword)}
+                              className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                            >
+                              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </button>
                           </div>
                         </div>
 
                         <div className="space-y-2">
-                          <Label htmlFor={`${role}-phone`}>Phone Number</Label>
+                          <Label htmlFor={`${role}-phone`}>Phone Number*</Label>
                           <div className="relative">
                             <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                             <Input 
                               id={`${role}-phone`}
-                              placeholder="Enter your phone number"
+                              placeholder="Enter 10 digit phone number"
                               className="pl-10"
                               value={formData.phone}
                               onChange={handleChange}
+                              pattern="\d{10}"
+                              title="Please enter exactly 10 digits"
                               required
                             />
                           </div>
@@ -202,7 +264,7 @@ const SignupPage = () => {
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor={`${role}-address`}>Address</Label>
+                        <Label htmlFor={`${role}-address`}>Address*</Label>
                         <div className="relative">
                           <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                           <Input 
@@ -217,7 +279,7 @@ const SignupPage = () => {
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor={`${role}-profile`}>Profile Picture</Label>
+                        <Label htmlFor={`${role}-profile`}>Profile Picture*</Label>
                         <div className="relative">
                           <Upload className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                           <Input 
@@ -236,14 +298,7 @@ const SignupPage = () => {
                         className="w-full bg-blue-600 hover:bg-blue-700"
                         disabled={loading}
                       >
-                        {loading ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Creating Account...
-                          </>
-                        ) : (
-                          `Create ${role === 'customer' ? 'Customer' : 'Vendor'} Account`
-                        )}
+                        Sign up
                       </Button>
                     </form>
                   </TabsContent>
