@@ -1,5 +1,8 @@
 const express = require('express');
 const router = express.Router();
+const { validateOTP } = require('../controllers/auth/otpverification');
+const { resetPassword } = require('../controllers/auth/resetPasswordController');
+const { forgotPassword } = require('../controllers/auth/forgotPassword');
 const { 
   signup, 
   signin, 
@@ -21,6 +24,12 @@ router.post('/signin', asyncHandler(signin));
 // Email Verification Routes
 router.post('/verify-email', asyncHandler(verifyEmail));
 router.post('/resend-verification', asyncHandler(resendVerification));
+
+router.post('/otp',asyncHandler(validateOTP));
+router.post('/reset-password', asyncHandler(resetPassword));
+router.post('/forgot-password', asyncHandler(forgotPassword));
+
+
 
 // Global error handler
 router.use((err, req, res, next) => {
