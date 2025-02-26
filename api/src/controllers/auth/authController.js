@@ -6,7 +6,8 @@ require('dotenv').config();
 
 const { sendVerificationEmail } = require('../../services/emailService');
 const generateVerificationCode = require('../../utils/codeGenerator');
-const { validateSignupInput } = require('./validation');
+
+
 const { 
   createTempUser, 
   moveTempUserToMain, 
@@ -55,7 +56,6 @@ const signup = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(req.body.password, salt);
 
-    // Prepare user data
     // Prepare user data
     const userData = {
       id: uuidv4(),

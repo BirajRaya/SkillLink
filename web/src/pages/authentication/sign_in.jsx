@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Mail, Lock, Briefcase, Loader2 } from "lucide-react";
+import { Mail, Lock, Briefcase, Loader2 , Eye, EyeOff } from "lucide-react";
 import LockImage from "../../assets/image/signup.png";
 import axios from "axios";
 import { useState } from "react";
@@ -13,6 +13,7 @@ const SigninPage = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: ""
@@ -95,7 +96,7 @@ const SigninPage = () => {
             <CardContent className="p-0">
               <form className="space-y-4" onSubmit={handleSubmitForSignIn}>
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email">Email*</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                     <Input 
@@ -111,18 +112,25 @@ const SigninPage = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
+                  <Label htmlFor="password">Password*</Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                     <Input 
                       id="password" 
-                      type="password" 
+                      type={showPassword ? "text" : "password"} 
                       placeholder="Enter your password" 
-                      className="pl-10"
+                      className="pl-10 pr-10"
                       value={formData.password}
                       onChange={handleChange}
                       required
                     />
+                   <button 
+                              type="button"
+                              onClick={() => setShowPassword(!showPassword)}
+                              className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                            >
+                              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </button>  
                   </div>
                 </div>
 

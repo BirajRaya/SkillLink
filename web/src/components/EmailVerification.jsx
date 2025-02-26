@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Mail } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
+// eslint-disable-next-line react/prop-types
 const EmailVerification = ({ email }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -122,7 +123,7 @@ const EmailVerification = ({ email }) => {
           </div>
           <h2 className="text-2xl font-bold text-center">Verify your email</h2>
           <p className="text-gray-600 text-center">
-            We've sent a verification code to<br />
+            We&apos;ve sent a verification code to<br />
             <span className="font-medium text-gray-900">{email}</span>
           </p>
 
@@ -166,7 +167,7 @@ const EmailVerification = ({ email }) => {
           </form>
 
           <div className="text-sm text-center">
-            <span className="text-gray-600">Didn't receive the code? </span>
+            <span className="text-gray-600">Didn&apos;t receive the code? </span>
             <button
               onClick={handleResendCode}
               disabled={resendLoading || success}
