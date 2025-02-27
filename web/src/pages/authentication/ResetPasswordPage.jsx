@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Mail, Lock, Briefcase, Loader2 } from "lucide-react";
+import {Lock, Briefcase, Loader2 } from "lucide-react";
 import forgotp from "../../assets/image/forgotp.png";
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
