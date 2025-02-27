@@ -20,7 +20,7 @@ function App() {
           <Route path="/login" element={<SignInPage />} />
         </Route>
         
-        <Route path="/admin-dashboard" element={<AdminDashboard />} />
+        <Route path="/admin-dashboard/*" element={<AdminDashboard />} />
         <Route path="/user-dashboard" element={<UserDashboard />} />
       </Routes>
     </Router>
