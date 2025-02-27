@@ -6,6 +6,9 @@ import UserDashboard from "./pages/users/user_dashboard";
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import TemplatePage from "./pages/TemplatePage"
 import { Toaster } from "@/components/ui/toaster"
+import ForgotPasswordPage from "./pages/authentication/ForgetPasswordPage";
+import OtpVerificationPage from "./pages/authentication/OtpVerificationPage";
+import ResetPasswordPage from "./pages/authentication/ResetPasswordPage";
 
 function App() {
   return (
@@ -18,6 +21,9 @@ function App() {
           <Route index element={<LandingPage />} />  
           <Route path="/register" element={<SignupPage />} />
           <Route path="/login" element={<SignInPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/verify-otp" element={<OtpVerificationPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         </Route>
         
         <Route path="/admin-dashboard" element={<AdminDashboard />} />

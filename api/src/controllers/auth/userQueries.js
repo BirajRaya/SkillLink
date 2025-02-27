@@ -88,9 +88,43 @@ const findUserByEmail = async (client, email) => {
   return client.query(query, [email]);
 };
 
+const checkOTP = async (client,email, otp) => {
+  return client.query(
+    'SELECT * FROM otpRequests WHERE email = $1 AND otp = $2 AND expiresAt < NOW()',
+    [email, otp]
+  );
+};
+
+ const deleteOTP = async (client,email, otp) => {
+  return client.query('DELETE FROM otpRequests WHERE email = $1 AND otp = $2', [email, otp]);
+};
+
+
+const updatePassword = async (client, email, newPassword) => {
+  const query = `
+    UPDATE users 
+    SET password = $1, updated_at = CURRENT_TIMESTAMP
+    WHERE email = $2
+    RETURNING id, email, full_name;
+  `;
+  const values = [newPassword, email];
+  return client.query(query, values);
+};
+
+const saveOTP = async (client, email, otp, expiresAt) => {
+  await client.query(
+    'INSERT INTO otprequests (email, otp, expiresAt) VALUES ($1, $2, $3)',
+    [email, otp, expiresAt]
+  );
+};
+
 module.exports = {
   createTempUser,
   moveTempUserToMain,
   findTempUserByEmail,
-  findUserByEmail
+  findUserByEmail,
+  checkOTP,
+    updatePassword,
+    deleteOTP,
+    saveOTP
 };

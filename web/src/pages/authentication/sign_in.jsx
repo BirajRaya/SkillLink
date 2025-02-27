@@ -154,6 +154,14 @@ const SigninPage = () => {
                   Sign up
                 </a>
               </div>
+              <div className="mt-2 text-center text-gray-600">
+                <a 
+                  href="/forgot-password" 
+                  className="text-blue-600 hover:underline font-medium"
+                >
+                  Forgot Password?
+                </a>
+              </div>
             </CardContent>
           </Card>
         </div>
