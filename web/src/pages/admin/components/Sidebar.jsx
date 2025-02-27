@@ -1,9 +1,9 @@
 import { Link, useLocation } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  Users, 
-  Building2, 
-  AlertCircle, 
+import {
+  LayoutDashboard,
+  Users,
+  Building2,
+  AlertCircle,
   BarChart,
   Settings,
   LogOut,
@@ -16,6 +16,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useAuth } from "../../../utils/AuthContext";
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/admin-dashboard' },
@@ -26,6 +27,7 @@ const navItems = [
 ];
 
 const Sidebar = () => {
+  const { logout } = useAuth();
   const location = useLocation();
 
   return (
@@ -70,7 +72,10 @@ const Sidebar = () => {
               <Settings className="mr-2 h-4 w-4" />
               <span>Settings</span>
             </DropdownMenuItem>
-            <DropdownMenuItem className="text-red-600">
+            <DropdownMenuItem className="text-red-600" onSelect={(e) => {
+              e.preventDefault();
+              logout();
+            }}>
               <LogOut className="mr-2 h-4 w-4" />
               <span>Logout</span>
             </DropdownMenuItem>

@@ -2,15 +2,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Mail, Lock, Briefcase, Loader2 , Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, Briefcase, Loader2, Eye, EyeOff } from "lucide-react";
 import LockImage from "../../assets/image/signup.png";
 import axios from "axios";
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { jwtDecode } from "jwt-decode";
+import { useState, useEffect } from "react";
+import { useAuth } from "../../utils/AuthContext";
 
 const SigninPage = () => {
-  const navigate = useNavigate();
+  const { login, navigateByRole, isAuthenticated, currentUser } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -18,6 +17,13 @@ const SigninPage = () => {
     email: "",
     password: ""
   });
+
+  // Check if user is already logged in
+  useEffect(() => {
+    if (isAuthenticated && currentUser) {
+      navigateByRole(currentUser.role);
+    }
+  }, [isAuthenticated, currentUser, navigateByRole]);
 
   const handleChange = (e) => {
     const { id, value } = e.target;
@@ -38,21 +44,11 @@ const SigninPage = () => {
       console.log('Login response:', response.data);
 
       if (response.data.token) {
-        // Save token in localStorage
-        localStorage.setItem('token', response.data.token);
-
-        // Decode the token to get user role
-        const decodedToken = jwtDecode(response.data.token);
-        const userRole = decodedToken.role; // Assuming role is in the token
-
-        // Redirect based on user role
-        if (userRole === "admin") {
-          navigate('/admin-dashboard');
-        } else if (userRole === "vendor") {
-          navigate('/vendor-dashboard');
-        } else {
-          navigate('/user-dashboard');
-        }
+        // Login and get user role
+        const userRole = await login(response.data.user, response.data.token);
+        
+        // Navigate based on role - only do this once
+        navigateByRole(userRole);
       }
     } catch (err) {
       console.error('Login error:', err);
@@ -124,13 +120,13 @@ const SigninPage = () => {
                       onChange={handleChange}
                       required
                     />
-                   <button 
-                              type="button"
-                              onClick={() => setShowPassword(!showPassword)}
-                              className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
-                            >
-                              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                            </button>  
+                    <button 
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>  
                   </div>
                 </div>
 

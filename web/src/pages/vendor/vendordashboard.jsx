@@ -1,7 +1,16 @@
-import { useState, useEffect } from "react";
-import { Briefcase, User, LogOut, Settings, Mail, Phone, Lock, Save, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Link, useLocation } from 'react-router-dom';
+import { useState } from 'react';
+import { useAuth } from '../../utils/AuthContext';
+import { 
+  User, 
+  LogOut, 
+  Settings, 
+  ChevronDown, 
+  Mail, 
+  Phone, 
+  Lock, 
+  Save,
+  X
+} from "lucide-react";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -9,62 +18,30 @@ import {
   DropdownMenuSeparator, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
+import { Button } from "@/components/ui/button";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
   DialogDescription,
   DialogFooter,
   DialogClose
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useAuth } from '../utils/AuthContext'; // Update this path if needed
 
-const Navbar = () => {
-  const location = useLocation();
-  const [activePage, setActivePage] = useState("");
-  const { currentUser, isAuthenticated, logout } = useAuth();
+const VendorDashboard = () => {
+  const { currentUser, logout } = useAuth();
   const [showProfileDialog, setShowProfileDialog] = useState(false);
   const [profileData, setProfileData] = useState({
-    fullName: '',
-    email: '',
-    phone: '',
+    fullName: currentUser?.fullName || '',
+    email: currentUser?.email || '',
+    phone: currentUser?.phone || '',
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
   });
-
-  const navLinks = [
-    { name: "Home", href: "/", id: "home" },
-    { name: "About", href: "#", id: "about" },
-    { name: "Contact", href: "#", id: "contact" },
-  ];
-
-  useEffect(() => {
-    // Check the current path and set active page
-    const path = location.pathname.split('/')[1] || "home"; // Default to "home"
-    setActivePage(path);
-  }, [location]);
-
-  useEffect(() => {
-    // Update profile data when currentUser changes
-    if (currentUser) {
-      setProfileData({
-        ...profileData,
-        fullName: currentUser.fullName || '',
-        email: currentUser.email || '',
-        phone: currentUser.phone || ''
-      });
-    }
-  }, [currentUser]);
-
-  // Function to get user's first name from full name
-  const getFirstName = () => {
-    if (!currentUser || !currentUser.fullName) return "User";
-    return currentUser.fullName.split(' ')[0];
-  };
 
   const handleProfileChange = (e) => {
     const { id, value } = e.target;
@@ -81,88 +58,84 @@ const Navbar = () => {
   };
 
   return (
-    <>
-      <nav className="border-b sticky top-0 bg-white z-50">
+    <div className="min-h-screen bg-gray-100">
+      {/* Dashboard Header with Profile Actions */}
+      <div className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
-            {/* Logo */}
+            <h1 className="text-2xl font-bold text-gray-900">Vendor Dashboard</h1>
+            
             <div className="flex items-center">
-              <Briefcase className="h-8 w-8 text-blue-600" />
-              <span className="ml-2 text-2xl font-bold text-blue-600">SkillLink</span>
-            </div>
-
-            {/* Navigation Links */}
-            <div className="hidden md:flex items-center space-x-8">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.id}
-                  to={link.href}
-                  onClick={() => setActivePage(link.id)}
-                  className={`${
-                    activePage === link.id
-                      ? "text-blue-600 border-b-2 border-blue-600"
-                      : "text-gray-600 hover:text-blue-600"
-                  } pb-1`}
-                >
-                  {link.name}
-                </Link>
-              ))}
-            </div>
-
-            {/* Buttons or User Profile */}
-            <div className="flex items-center space-x-4">
-              {isAuthenticated ? (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="flex items-center space-x-2">
-                      <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-                        <User className="h-4 w-4 text-blue-600" />
-                      </div>
-                      <span>{currentUser?.fullName || 'User'}</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem 
-                      className="flex items-center"
-                      onClick={() => setShowProfileDialog(true)}
-                    >
-                      <User className="mr-2 h-4 w-4" />
-                      <span>Update Profile</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem className="flex items-center">
-                      <Settings className="mr-2 h-4 w-4" />
-                      <span>Settings</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem className="flex items-center text-red-600" onClick={logout}>
-                      <LogOut className="mr-2 h-4 w-4" />
-                      <span>Logout</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              ) : (
-                <>
-                  <Button
-                    variant="outline"
-                    className={`${
-                      activePage === "login" ? "text-blue-600 border-b-2 border-blue-600" : ""
-                    }`}
-                  >
-                    <Link to="/login">Sign In</Link>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="flex items-center space-x-2">
+                    <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                      <User className="h-4 w-4 text-blue-600" />
+                    </div>
+                    <span>{currentUser?.fullName || 'Vendor'}</span>
+                    <ChevronDown className="h-4 w-4" />
                   </Button>
-                  <Button
-                    className={`${
-                      activePage === "register" ? " border-b-2 border-blue-600" : ""
-                    }`}
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem 
+                    className="flex items-center"
+                    onClick={() => setShowProfileDialog(true)}
                   >
-                    <Link to="/register">Sign Up</Link>
-                  </Button>
-                </>
-              )}
+                    <Settings className="mr-2 h-4 w-4" />
+                    <span>Update Profile</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    className="flex items-center text-red-600" 
+                    onClick={logout}
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Logout</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </div>
-      </nav>
+      </div>
+
+      {/* Main Dashboard Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+          <h2 className="text-xl font-semibold mb-4">Welcome, {currentUser?.fullName || 'Vendor'}!</h2>
+          <p className="text-gray-600">
+            This is your vendor dashboard where you can manage your services, view statistics,
+            and interact with your customers.
+          </p>
+        </div>
+        
+        {/* Dashboard content would go here */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h3 className="text-lg font-medium mb-2">Services</h3>
+            <p className="text-gray-600 mb-4">Manage your services and offerings</p>
+            <span className="inline-block bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-semibold">
+              0 Active
+            </span>
+          </div>
+          
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h3 className="text-lg font-medium mb-2">Orders</h3>
+            <p className="text-gray-600 mb-4">View and manage customer orders</p>
+            <span className="inline-block bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-semibold">
+              0 Pending
+            </span>
+          </div>
+          
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h3 className="text-lg font-medium mb-2">Earnings</h3>
+            <p className="text-gray-600 mb-4">Track your revenue and payments</p>
+            <span className="inline-block bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-semibold">
+              $0.00
+            </span>
+          </div>
+        </div>
+      </div>
 
       {/* Profile Update Dialog */}
       <Dialog open={showProfileDialog} onOpenChange={setShowProfileDialog}>
@@ -282,8 +255,8 @@ const Navbar = () => {
           </form>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 };
 
-export default Navbar;
+export default VendorDashboard;
