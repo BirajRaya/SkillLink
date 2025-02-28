@@ -3,6 +3,7 @@ const router = express.Router();
 const { validateOTP } = require('../controllers/auth/otpverification');
 const { resetPassword } = require('../controllers/auth/resetPasswordController');
 const { forgotPassword } = require('../controllers/auth/forgotPassword');
+const adminAuthMiddleware = require('../middleware/adminAuth');
 const { 
   signup, 
   signin, 
@@ -39,5 +40,8 @@ router.use((err, req, res, next) => {
     error: process.env.NODE_ENV === 'production' ? {} : err.message
   });
 });
+
+// Apply to admin routes
+router.use('/admin', adminAuthMiddleware);
 
 module.exports = router;

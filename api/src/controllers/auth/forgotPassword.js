@@ -3,6 +3,9 @@ const { findUserByEmail, saveOTP } = require('./userQueries');
 const sgMail = require('@sendgrid/mail');
 const crypto = require('crypto');
 
+const { sendVerificationEmail } = require('../../services/emailService');
+const generateVerificationCode = require('../../utils/codeGenerator');
+
 // Set SendGrid API key
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
@@ -22,22 +25,11 @@ const forgotPassword = async (req, res) => {
     }
 
     // Generate OTP (One Time Password)
-    const otp = crypto.randomInt(100000, 999999).toString();
+    const verificationCode = generateVerificationCode();
     const expirationTime = new Date(Date.now() + 10 * 60 * 1000); // OTP expires in 10 minutes
 
-    // Save OTP to the database
-    await saveOTP(client, email, otp, expirationTime);
-
-    // Prepare SendGrid email
-    const msg = {
-      to: email,
-      from: 'java.project.t3@gmail.com',
-      subject: 'Your OTP for Password Reset',
-      text: `Your OTP is: ${otp}. It will expire in 10 minutes.`,
-    };
-
-    // Send OTP via SendGrid
-    await sgMail.send(msg);
+      // Send verification email
+      await sendVerificationEmail(email, verificationCode);
 
     // Respond back with success
     res.status(200).json({ message: 'OTP sent to your email' });

@@ -1,8 +1,13 @@
 const express = require("express");
 const pool = require("./src/config/db");
 const cors = require("cors");
-const authRoutes = require("./src/routes/authRoutes");
+const path = require('path');
 const http = require('http');
+const multer = require('multer');
+
+// Import routes
+const authRoutes = require("./src/routes/authRoutes");
+const adminRoutes = require("./src/routes/adminRoutes");
 
 // Create the Express App
 const app = express();
@@ -10,55 +15,68 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors({
-  origin: "http://localhost:5173",
-  methods: ["GET", "POST"],
+  origin: "http://localhost:5173", // Your frontend URL
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,
 }));
 
-// Parse JSON bodies
-app.use(express.json());
-
-// Test route
-app.get('/test', (req, res) => {
-  res.json({ message: 'Server is working!' });
+// Detailed logging middleware
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+  console.log('Request headers:', req.headers);
+  console.log('Request body:', req.body);
+  next();
 });
+
+// Body parsing middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Static file serving
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
 app.use("/", authRoutes);
+app.use("/admin", adminRoutes);  // Ensure this line is correct
 
-// Error handling middleware
+// Global error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ message: 'Something broke!', error: err.message });
+  console.error('Unhandled error:', {
+    message: err.message,
+    stack: err.stack,
+    method: req.method,
+    path: req.path
+  });
+
+  res.status(500).json({ 
+    message: 'Something went wrong!',
+    error: process.env.NODE_ENV === 'development' ? err.message : undefined
+  });
+});
+
+// Catch-all route for undefined routes
+app.use((req, res) => {
+  console.log('Unhandled route:', {
+    method: req.method,
+    path: req.path,
+    body: req.body,
+    headers: req.headers
+  });
+
+  res.status(404).json({ 
+    message: 'Route not found',
+    method: req.method,
+    path: req.path
+  });
 });
 
 // Create HTTP server
 const server = http.createServer(app);
 
-// Function to start the server
-function startServer(port) {
-  server.listen(port, () => {
-    console.log(`🚀 Server running on http://localhost:${port}`);
-  }).on('error', (err) => {
-    if (err.code === 'EADDRINUSE') {
-      console.log(`Port ${port} is busy, trying ${port + 1}`);
-      startServer(port + 1);
-    } else {
-      console.error('Server error:', err);
-    }
-  });
-}
-
 // Start the server
-startServer(PORT);
-
-// Graceful shutdown
-process.on('SIGINT', () => {
-  console.log('Closing server and database connections...');
-  server.close(() => {
-    pool.end(() => {
-      console.log('Database pool closed');
-      process.exit(0);
-    });
-  });
+server.listen(PORT, () => {
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
+
+module.exports = app;
