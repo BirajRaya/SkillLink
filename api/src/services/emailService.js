@@ -11,7 +11,7 @@ const createTransporter = () => {
     host: 'smtp.sendgrid.net',
     port: 587,
     auth: {
-      user: 'apikey', // This is literally the string 'apikey'
+      user: 'apikey', // This is the string 'apikey'
       pass: process.env.SENDGRID_API_KEY
     },
     secure: false,
