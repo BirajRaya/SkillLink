@@ -36,38 +36,39 @@ router.get('/users/check-email', async (req, res) => {
 
 // Create user route with file upload handling
 router.post('/users', upload.single('profilePicture'), async (req, res) => {
-    console.log('Received POST request to create user', {
-      body: req.body,
-      file: req.file
-    });
-  
-    try {
-      const userData = {
-        fullName: req.body.fullName,
-        email: req.body.email,
-        phoneNumber: req.body.phoneNumber,
-        address: req.body.address,
-        password: req.body.password,
-        profilePicture: req.file ? {
-          buffer: req.file.buffer,
-          originalname: req.file.originalname
-        } : null
-      };
-  
-      const newUser = await AdminUserService.createUser(userData);
-      
-      res.status(201).json({
-        message: 'User created successfully',
-        user: newUser
-      });
-    } catch (error) {
-      console.error('Error creating user:', error);
-      res.status(400).json({ 
-        message: error.message || 'Error creating user', 
-        error: error.toString()
-      });
-    }
+  console.log('Received POST request to create user', {
+    body: req.body,
+    file: req.file
   });
+
+  try {
+    const userData = {
+      fullName: req.body.fullName,
+      email: req.body.email,
+      phoneNumber: req.body.phoneNumber,
+      address: req.body.address,
+      password: req.body.password,
+      isActive: req.body.isActive, // Add this line to include the isActive field
+      profilePicture: req.file ? {
+        buffer: req.file.buffer,
+        originalname: req.file.originalname
+      } : null
+    };
+
+    const newUser = await AdminUserService.createUser(userData);
+    
+    res.status(201).json({
+      message: 'User created successfully',
+      user: newUser
+    });
+  } catch (error) {
+    console.error('Error creating user:', error);
+    res.status(400).json({ 
+      message: error.message || 'Error creating user', 
+      error: error.toString()
+    });
+  }
+});
 
 // Get all users route
 router.get('/users', async (req, res) => {
@@ -99,6 +100,7 @@ router.put('/users/:id', upload.single('profilePicture'), async (req, res) => {
       phoneNumber: req.body.phoneNumber,
       address: req.body.address,
       password: req.body.password || undefined, // Only update if provided
+      isActive: req.body.isActive, // Add this line to include the isActive field
       profilePicture: req.file ? {
         buffer: req.file.buffer,
         originalname: req.file.originalname
