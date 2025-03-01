@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
-import { Briefcase, User, LogOut, Settings, Mail, Phone, Lock, Save, X } from "lucide-react";
+import { Briefcase, User, LogOut, Settings, Mail, Phone, Lock, Save, X, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link, useLocation } from 'react-router-dom';
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuSeparator, 
-  DropdownMenuTrigger 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import {
   Dialog,
@@ -21,19 +21,24 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from '../utils/AuthContext'; // Update this path if needed
+import axios from "axios";
+import { Home } from "lucide-react";
 
 const Navbar = () => {
   const location = useLocation();
   const [activePage, setActivePage] = useState("");
-  const { currentUser, isAuthenticated, logout } = useAuth();
+  const { currentUser, isAuthenticated, logout, setCurrentUser } = useAuth();
   const [showProfileDialog, setShowProfileDialog] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
   const [profileData, setProfileData] = useState({
     fullName: '',
     email: '',
     phone: '',
     currentPassword: '',
     newPassword: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    address: currentUser?.address
   });
 
   const navLinks = [
@@ -71,14 +76,47 @@ const Navbar = () => {
     setProfileData({ ...profileData, [id]: value });
   };
 
-  const handleProfileUpdate = (e) => {
+  const handleProfileUpdate = async (e) => {
     e.preventDefault();
-    // Here you would send the updated profile data to your backend
-    console.log("Updating profile with:", profileData);
-    
+    if (profileData.newPassword && profileData.newPassword !== profileData.confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+
+    try {
+      const response = await axios.post("http://localhost:5000/update-profile",
+        {
+          fullName: profileData.fullName,
+          email: profileData.email,
+          phone: profileData.phone,
+          profilePicture: profileData.profilePicture,
+          currentPassword: profileData.currentPassword,
+          newPassword: profileData.newPassword,
+          confirmPassword: profileData.confirmPassword,
+          address: profileData.address
+        });
+      const updateUser = response.data.user;
+      setProfileData(updateUser);
+      updateUser.role = currentUser.role;
+      updateUser.id = currentUser.id;
+      setCurrentUser(updateUser);
+      console.log(updateUser);
+      localStorage.setItem('user', JSON.stringify(updateUser));
+      setError("");
+
+    } catch (err) {
+      console.error('profile change error:', err);
+      setError(err.response.data.message);
+      return;
+    }
     // Close the dialog after updating
     setShowProfileDialog(false);
   };
+  const handleCancel = () => {
+    setProfileData(currentUser);
+    setError("");
+  }
+
 
   return (
     <>
@@ -98,11 +136,10 @@ const Navbar = () => {
                   key={link.id}
                   to={link.href}
                   onClick={() => setActivePage(link.id)}
-                  className={`${
-                    activePage === link.id
-                      ? "text-blue-600 border-b-2 border-blue-600"
-                      : "text-gray-600 hover:text-blue-600"
-                  } pb-1`}
+                  className={`${activePage === link.id
+                    ? "text-blue-600 border-b-2 border-blue-600"
+                    : "text-gray-600 hover:text-blue-600"
+                    } pb-1`}
                 >
                   {link.name}
                 </Link>
@@ -122,7 +159,7 @@ const Navbar = () => {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem 
+                    <DropdownMenuItem
                       className="flex items-center"
                       onClick={() => setShowProfileDialog(true)}
                     >
@@ -144,16 +181,14 @@ const Navbar = () => {
                 <>
                   <Button
                     variant="outline"
-                    className={`${
-                      activePage === "login" ? "text-blue-600 border-b-2 border-blue-600" : ""
-                    }`}
+                    className={`${activePage === "login" ? "text-blue-600 border-b-2 border-blue-600" : ""
+                      }`}
                   >
                     <Link to="/login">Sign In</Link>
                   </Button>
                   <Button
-                    className={`${
-                      activePage === "register" ? " border-b-2 border-blue-600" : ""
-                    }`}
+                    className={`${activePage === "register" ? " border-b-2 border-blue-600" : ""
+                      }`}
                   >
                     <Link to="/register">Sign Up</Link>
                   </Button>
@@ -173,103 +208,140 @@ const Navbar = () => {
               Make changes to your profile information here.
             </DialogDescription>
           </DialogHeader>
-          
+
           <form onSubmit={handleProfileUpdate} className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="fullName">Full Name</Label>
               <div className="relative">
                 <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input 
-                  id="fullName" 
+                <Input
+                  id="fullName"
                   value={profileData.fullName}
                   onChange={handleProfileChange}
-                  className="pl-10" 
+                  className="pl-10"
                   placeholder="Your full name"
+                  pattern="[A-Za-z\s]+"
+                  required
                 />
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input 
-                  id="email" 
+                <Input
+                  id="email"
                   type="email"
                   value={profileData.email}
                   onChange={handleProfileChange}
-                  className="pl-10" 
+                  className="pl-10 bg-gray-100 cursor-not-allowed"
                   placeholder="Your email address"
+                  readonly
                 />
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="phone">Phone Number</Label>
               <div className="relative">
                 <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input 
-                  id="phone" 
+                <Input
+                  id="phone"
                   value={profileData.phone}
                   onChange={handleProfileChange}
-                  className="pl-10" 
+                  className="pl-10"
                   placeholder="Your phone number"
+                  pattern="\d{10}"
+                  required
                 />
               </div>
             </div>
-            
+
+            <div className="space-y-2">
+              <Label htmlFor="address">Address</Label>
+              <div className="relative">
+                <Home className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Input
+                  id="address"
+                  value={profileData.address}
+                  onChange={handleProfileChange}
+                  className="pl-10"
+                  placeholder="Your address"
+                  required
+                />
+              </div>
+            </div>
+
             <div className="pt-4 border-t">
               <h4 className="text-sm font-medium mb-3">Change Password (Optional)</h4>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="currentPassword">Current Password</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input 
-                    id="currentPassword" 
+                  <Input
+                    id="currentPassword"
                     type="password"
                     value={profileData.currentPassword}
                     onChange={handleProfileChange}
-                    className="pl-10" 
+                    className="pl-10"
                     placeholder="Enter current password"
                   />
                 </div>
               </div>
-              
+
               <div className="space-y-2 mt-2">
                 <Label htmlFor="newPassword">New Password</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input 
-                    id="newPassword" 
-                    type="password"
+                  <Input
+                    id="newPassword"
+                    type={showPassword.newPassword ? "text" : "password"}
                     value={profileData.newPassword}
                     onChange={handleProfileChange}
-                    className="pl-10" 
-                    placeholder="Enter new password"
+                    className="pl-10"
+                    placeholder="Enter new password (Min 7 char)"
+                    minLength={7}
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(prev => ({ ...prev, newPassword: !prev.newPassword }))}
+                    className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                  >
+                    {showPassword.newPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
                 </div>
               </div>
-              
+
               <div className="space-y-2 mt-2">
                 <Label htmlFor="confirmPassword">Confirm New Password</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input 
-                    id="confirmPassword" 
-                    type="password"
+                  <Input
+                    id="confirmPassword"
+                    type={showPassword.confirmPassword ? "text" : "password"}
                     value={profileData.confirmPassword}
                     onChange={handleProfileChange}
-                    className="pl-10" 
-                    placeholder="Confirm new password"
+                    className="pl-10"
+                    placeholder="Confirm new password (Min 7 char)"
+                    minLength={7}
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(prev => ({ ...prev, confirmPassword: !prev.confirmPassword }))}
+                    className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                  >
+                    {showPassword.confirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
                 </div>
               </div>
+              {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
             </div>
-            
+
             <DialogFooter className="flex space-x-2 justify-end pt-4">
               <DialogClose asChild>
-                <Button type="button" variant="outline" className="flex items-center">
+                <Button type="button" variant="outline" className="flex items-center" onClick={handleCancel}>
                   <X className="mr-2 h-4 w-4" />
                   Cancel
                 </Button>
