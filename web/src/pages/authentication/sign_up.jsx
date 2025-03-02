@@ -27,6 +27,7 @@ const SignupPage = () => {
     profilePicture: null
   });
 
+
   const handleChange = (e) => {
     const { id, value } = e.target;
     const field = id.replace(`${selectedRole}-`, "");

@@ -97,7 +97,7 @@ const signup = async (req, res) => {
  */
 const signin = async (req, res) => {
   const client = await pool.connect();
-  
+  console.log(req.body);
   try {
     await client.query('BEGIN');
 
@@ -135,7 +135,10 @@ const signin = async (req, res) => {
         id: user.id,
         email: user.email,
         fullName: user.full_name,
-        role: user.role
+        phone: user.phone_number,
+        profilePicture: user.profilePicture,
+        role: user.role,
+        address: user.address
       }
     });
 

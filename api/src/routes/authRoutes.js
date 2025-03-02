@@ -3,6 +3,7 @@ const router = express.Router();
 const { validateOTP } = require('../controllers/auth/otpverification');
 const { resetPassword } = require('../controllers/auth/resetPasswordController');
 const { forgotPassword } = require('../controllers/auth/forgotPassword');
+const {updateProfile} = require('../controllers/user/userProfileController');
 const adminAuthMiddleware = require('../middleware/adminAuth');
 const { 
   signup, 
@@ -29,6 +30,7 @@ router.post('/resend-verification', asyncHandler(resendVerification));
 router.post('/otp',asyncHandler(validateOTP));
 router.post('/reset-password', asyncHandler(resetPassword));
 router.post('/forgot-password', asyncHandler(forgotPassword));
+router.post('/update-profile', asyncHandler(updateProfile))
 
 
 

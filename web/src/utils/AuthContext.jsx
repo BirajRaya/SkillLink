@@ -23,11 +23,12 @@ export const AuthProvider = ({ children }) => {
       setLoading(true);
       // Check if there's a token in localStorage
       const token = localStorage.getItem('token');
+
       if (token) {
         try {
           // Decode token to get user information
           const decodedToken = jwtDecode(token);
-          
+
           // Check if token is expired
           const currentTime = Date.now() / 1000;
           if (decodedToken.exp && decodedToken.exp < currentTime) {
@@ -38,12 +39,14 @@ export const AuthProvider = ({ children }) => {
             const userData = localStorage.getItem('user')
               ? JSON.parse(localStorage.getItem('user'))
               : {
-                  id: decodedToken.userId,
-                  email: decodedToken.email,
-                  role: decodedToken.role,
-                  fullName: decodedToken.fullName || 'User'
-                };
-            
+                id: decodedToken.userId,
+                email: decodedToken.email,
+                role: decodedToken.role,
+                fullName: decodedToken.fullName || 'User',
+                address: decodedToken.address || 'no address provided',
+                profilePicture: decodedToken.profilePicture || 'no picture',
+              };
+
             setCurrentUser(userData);
           }
         } catch (error) {
@@ -65,10 +68,10 @@ export const AuthProvider = ({ children }) => {
     if (userData) {
       localStorage.setItem('user', JSON.stringify(userData));
     }
-    
+
     // Update state
     setCurrentUser(userData);
-    
+
     // Return the role for external navigation if needed
     return userData?.role;
   };
@@ -105,7 +108,8 @@ export const AuthProvider = ({ children }) => {
     login,
     logout,
     navigateByRole,
-    loading
+    loading,
+    setCurrentUser
   };
 
   return (
