@@ -28,6 +28,9 @@ const forgotPassword = async (req, res) => {
     const verificationCode = generateVerificationCode();
     const expirationTime = new Date(Date.now() + 10 * 60 * 1000); // OTP expires in 10 minutes
 
+    // Save OTP to the database
+    await saveOTP(client, email, verificationCode, expirationTime);
+
       // Send verification email
       await sendVerificationEmail(email, verificationCode);
 
