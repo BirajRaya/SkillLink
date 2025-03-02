@@ -7,7 +7,9 @@ import {
   BarChart,
   Settings,
   LogOut,
-  User
+  ChartBarStacked,
+  User,
+  HandPlatter
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -24,6 +26,8 @@ const navItems = [
   { icon: Building2, label: 'Vendors', path: '/admin-dashboard/vendors' },
   { icon: AlertCircle, label: 'Disputes', path: '/admin-dashboard/disputes' },
   { icon: BarChart, label: 'Analytics', path: '/admin-dashboard/analytics' },
+  { icon: ChartBarStacked  , label: 'Categories', path: '/admin-dashboard/categories' },
+  { icon: HandPlatter, label: 'Services', path: '/admin-dashboard/services' },
 ];
 
 const Sidebar = () => {

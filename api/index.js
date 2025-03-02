@@ -8,6 +8,9 @@ const multer = require('multer');
 // Import routes
 const authRoutes = require("./src/routes/authRoutes");
 const adminRoutes = require("./src/routes/adminRoutes");
+const categoriesRoutes = require('./src/routes/categoriesRoutes');
+const serviceRoutes = require('./src/routes/serviceRoutes');
+
 
 // Create the Express App
 const app = express();
@@ -38,7 +41,9 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
 app.use("/", authRoutes);
-app.use("/admin", adminRoutes);  // Ensure this line is correct
+app.use("/admin", adminRoutes);  
+app.use("/categories", categoriesRoutes);
+app.use("/services", serviceRoutes);
 
 // Global error handling middleware
 app.use((err, req, res, next) => {
