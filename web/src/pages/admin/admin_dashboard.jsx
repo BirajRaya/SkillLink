@@ -6,6 +6,8 @@ import Users from './Users';
 import Vendors from './Vendors';
 import Disputes from './Disputes';
 import Analytics from './Analytics';
+import Categories from './categories';
+import Services from './Services';
 
 const AdminDashboard = () => {
   const location = useLocation();
@@ -17,7 +19,11 @@ const AdminDashboard = () => {
       return <Users />;
     } else if (currentPath === '/admin-dashboard/vendors') {
       return <Vendors />;
-    } else if (currentPath === '/admin-dashboard/disputes') {
+    } else if (currentPath === '/admin-dashboard/categories'){
+      return <Categories />;
+    } else if (currentPath === '/admin-dashboard/services') {  
+      return <Services />;
+    }else if (currentPath === '/admin-dashboard/disputes') {
       return <Disputes />;
     } else if (currentPath === '/admin-dashboard/analytics') {
       return <Analytics />;
