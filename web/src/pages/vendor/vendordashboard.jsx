@@ -10,6 +10,7 @@ import {
   Phone,
   Lock,
   Save,
+  Loader2,
   X,
   Home,
   Eye,
@@ -40,6 +41,7 @@ const VendorDashboard = () => {
   const [showProfileDialog, setShowProfileDialog] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const [profileData, setProfileData] = useState({
     fullName: currentUser?.fullName || '',
     profilePicture: currentUser.profilePicture || '',
@@ -56,6 +58,21 @@ const VendorDashboard = () => {
     setProfileData({ ...profileData, [id]: value });
   };
 
+  const handleProfilePictureChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result.split(",")[1];
+        setProfileData({
+          ...profileData,
+          profilePicture: base64String,
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
 
@@ -64,7 +81,13 @@ const VendorDashboard = () => {
       return;
     }
 
+    if (profileData.fullName.length < 5) {
+      setError("Full Name must be 6 charaacter long");
+      return;
+    }
+
     try {
+      setIsLoading(true);
       const response = await axios.post("http://localhost:5000/update-profile",
         {
           fullName: profileData.fullName,
@@ -90,13 +113,16 @@ const VendorDashboard = () => {
       return;
 
     }
+    finally {
+      setIsLoading(false);
+    }
     // Close the dialog after updating
     setShowProfileDialog(false);
   };
-    const handleCancel = () => {
-      setProfileData(currentUser);
-      setError("");
-    }
+  const handleCancel = () => {
+    setProfileData(currentUser);
+    setError("");
+  }
 
 
   return (
@@ -190,6 +216,32 @@ const VendorDashboard = () => {
           </DialogHeader>
 
           <form onSubmit={handleProfileUpdate} className="space-y-4 py-6 w-full max-w-md mx-auto ">
+          <div className="space-y-2 text-center">
+              <Label htmlFor="profilePicture">Profile Picture</Label>
+              <div className="relative w-24 h-24 mx-auto">
+                <img
+                  src={`data:image/jpeg;base64,${profileData.profilePicture}`}
+                  alt="Profile"
+                  className="w-24 h-24 rounded-full object-cover border"
+                />
+                <label htmlFor="profilePictureInput">
+                <div className="absolute bottom-1 right-1 bg-gray-800 text-white p-1 rounded-full cursor-pointer hover:bg-gray-700">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13.5V17h3.5l7.5-7.5a2.121 2.121 0 000-3l-3-3a2.121 2.121 0 00-3 0L9 10.5z" />
+                  </svg>
+                </div>
+              </label>
+              <input
+                type="file"
+                id="profilePictureInput"
+                accept="image/*"
+                className="hidden"
+                onChange={handleProfilePictureChange}
+              />
+              </div>
+              </div>
+
+
             {/* Full Name */}
             <div className="space-y-2">
               <Label htmlFor="fullName">Full Name</Label>
@@ -338,8 +390,17 @@ const VendorDashboard = () => {
                 </Button>
               </DialogClose>
               <Button type="submit" className="flex items-center">
-                <Save className="mr-2 h-4 w-4" />
-                Save Changes
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="mr-2 h-4 w-4" />
+                  Save Changes
+                </>
+              )}
               </Button>
             </DialogFooter>
           </form>
