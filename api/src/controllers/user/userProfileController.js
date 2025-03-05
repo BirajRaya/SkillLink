@@ -1,18 +1,20 @@
 const pool = require('../../config/db');
 const { updateUser } = require('../../services/adminUserService');
 const { findUserByEmail, updatePassword } = require('../auth/userQueries');
-const bcrypt = require('bcrypt');  // Import bcrypt
+const bcrypt = require('bcrypt');
 
 const updateProfile = async (req, res) => {
-    console.log('inside update profile');
+    console.log('Inside update profile');
+
     const client = await pool.connect();
-    console.log(req.body);
     const { fullName, profilePicture, email, phone, currentPassword, newPassword, address } = req.body;
+
     try {
         const { rows } = await findUserByEmail(client, email);
         const user = rows[0];
-        console.log(user.full_name);
+
         if (!user) {
+            console.log('User not found');
             return res.status(400).json({ message: 'Email not found' });
         }
 
@@ -36,58 +38,49 @@ const updateProfile = async (req, res) => {
             updateFields.push(`phone_number = $${index++}`);
             values.push(phone);
         }
-
         if (address && address !== user.address) {
             updateFields.push(`address = $${index++}`);
             values.push(address);
         }
 
-
-
-
-
-        const userResult = await findUserByEmail(client, email);
-        if (userResult.rows.length === 0) {
-            return res.status(400).json({ message: 'User not found' });
+        // Prevent running empty SQL queries
+        if (updateFields.length === 0 && !newPassword) {
+            return res.status(400).json({ message: 'No updates were made' });
         }
 
-        if (newPassword || newPassword.length > 0) {
-            const isPasswordValid = await bcrypt.compare(currentPassword, userResult.rows[0].password);
+        if (newPassword && newPassword.length > 0) {
+            const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
             if (!isPasswordValid) {
                 return res.status(400).json({ message: 'Invalid current password' });
             }
-
-
-
-            const hashedPassword = await bcrypt.hash(newPassword, 10);// Hash the new password
-
+            const hashedPassword = await bcrypt.hash(newPassword, 10);
             await updatePassword(client, email, hashedPassword);
-
         }
-        const updateQuery = `UPDATE users SET ${updateFields.join(', ')} WHERE email = $${index} RETURNING *`;
-        values.push(email);
-        // Execute the update
-        const updatedUser = await pool.query(updateQuery, values);
-        console.log(updatedUser.rows[0]);
-        res.status(200).json({
-            message: 'Profile updated successfully',
-            user: {
-                id: updatedUser.rows[0].id,
-                email: updatedUser.rows[0].email,
-                fullName: updatedUser.rows[0].full_name,
-                phone: updatedUser.rows[0].phone_number,
-                profilePicture: updatedUser.rows[0].profile_picture,
-                address: updatedUser.rows[0].address
-            }
-        });
-    }
-    catch (err) {
-        console.error('Error in profile update process:', err);
-        res.status(500).json({ message: 'Error profile update request' });
-    } finally {
-        client.release(); // Always release the database connection
-    }
 
-}
+        if (updateFields.length > 0) {
+            values.push(email);
+            const updateQuery = `UPDATE users SET ${updateFields.join(', ')} WHERE email = $${index} RETURNING *`;
+            const updatedUser = await pool.query(updateQuery, values);
+            res.status(200).json({
+                message: 'Profile updated successfully',
+                user: {
+                    id: updatedUser.rows[0].id,
+                    email: updatedUser.rows[0].email,
+                    fullName: updatedUser.rows[0].full_name,
+                    phone: updatedUser.rows[0].phone_number,
+                    profilePicture: updatedUser.rows[0].profile_picture,
+                    address: updatedUser.rows[0].address
+                }
+            });
+        } else {
+            res.status(200).json({ message: 'Password updated successfully' });
+        }
+    } catch (err) {
+        console.error('Error in profile update process:', err);
+        res.status(500).json({ message: 'Error processing profile update request' });
+    } finally {
+        client.release();
+    }
+};
 
 module.exports = { updateProfile };
