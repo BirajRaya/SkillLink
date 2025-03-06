@@ -64,7 +64,7 @@ const signup = async (req, res) => {
       hashedPassword,
       phone: req.body.phone,
       address: req.body.address,
-      profilePicture: req.body.profilePicture ? `/uploads/${req.body.profilePicture}` : null,
+      profilePicture: req.body.profilePicture ? req.body.profilePicture : null,
       role: req.body.role || 'user',
       verificationCode,
       verificationExpiry
@@ -135,7 +135,7 @@ const signin = async (req, res) => {
         email: user.email,
         fullName: user.full_name,
         phone: user.phone_number,
-        profilePicture: user.profilePicture,
+        profilePicture: user.profile_picture,
         role: user.role,
         address: user.address
       }

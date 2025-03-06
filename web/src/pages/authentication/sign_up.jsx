@@ -38,8 +38,18 @@ const SignupPage = () => {
   };
 
   const handleFileChange = (e) => {
-    if (e.target.files?.[0]) {
-      setFormData({ ...formData, profilePicture: e.target.files[0].name });
+    const file = e.target.files[0];
+    if (file) {
+      // setFormData({ ...formData, profilePicture: e.target.files[0].name });
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result.split(",")[1];
+        setFormData({
+          ...formData,
+          profilePicture: base64String,
+        });
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -89,7 +99,7 @@ const SignupPage = () => {
     }
 
     setLoading(true);
-
+    console.log(formData);
     try {
       const response = await axios.post("http://localhost:5000/signup", {
         fullName: formData.fullName,
@@ -199,6 +209,7 @@ const SignupPage = () => {
                               onChange={handleChange}
                               pattern="[A-Za-z\s]+"
                               title="Enter Letters Only"
+                              minLength={5}
                               required
                             />
                           </div>

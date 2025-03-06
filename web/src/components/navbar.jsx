@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Briefcase, User, LogOut, Settings, Mail, Phone, Lock, Save, X, Eye, EyeOff } from "lucide-react";
+import { Briefcase, User, LogOut, Settings, Mail, Phone, Lock, Save, X, Eye, EyeOff,Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link, useLocation } from 'react-router-dom';
 import {
@@ -29,6 +29,7 @@ const Navbar = () => {
   const [activePage, setActivePage] = useState("");
   const { currentUser, isAuthenticated, logout, setCurrentUser } = useAuth();
   const [showProfileDialog, setShowProfileDialog] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [profileData, setProfileData] = useState({
@@ -38,7 +39,8 @@ const Navbar = () => {
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
-    address: currentUser?.address
+    profilePicture:null,
+    address: ''
   });
 
   const navLinks = [
@@ -60,7 +62,9 @@ const Navbar = () => {
         ...profileData,
         fullName: currentUser.fullName || '',
         email: currentUser.email || '',
-        phone: currentUser.phone || ''
+        phone: currentUser.phone || '',
+        address: currentUser.address || '',
+        profilePicture: currentUser.profilePicture
       });
     }
   }, [currentUser]);
@@ -76,14 +80,36 @@ const Navbar = () => {
     setProfileData({ ...profileData, [id]: value });
   };
 
+  const handleProfilePictureChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result.split(",")[1];
+        setProfileData({
+          ...profileData,
+          profilePicture: base64String,
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
     if (profileData.newPassword && profileData.newPassword !== profileData.confirmPassword) {
       setError("Passwords do not match");
       return;
     }
+    
+    if(profileData.fullName.length < 5)
+      {
+        setError("Full Name must be 6 charaacter long");
+        return;
+      }
 
     try {
+      setIsLoading(true);
       const response = await axios.post("http://localhost:5000/update-profile",
         {
           fullName: profileData.fullName,
@@ -108,6 +134,9 @@ const Navbar = () => {
       console.error('profile change error:', err);
       setError(err.response.data.message);
       return;
+    }
+    finally {
+      setIsLoading(false);
     }
     // Close the dialog after updating
     setShowProfileDialog(false);
@@ -210,6 +239,30 @@ const Navbar = () => {
           </DialogHeader>
 
           <form onSubmit={handleProfileUpdate} className="space-y-4 py-4">
+          <div className="space-y-2 text-center">
+              <Label htmlFor="profilePicture">Profile Picture</Label>
+              <div className="relative w-24 h-24 mx-auto">
+                <img
+                  src={`data:image/jpeg;base64,${profileData.profilePicture}`}
+                  alt="Profile"
+                  className="w-24 h-24 rounded-full object-cover border"
+                />
+                <label htmlFor="profilePictureInput">
+                <div className="absolute bottom-1 right-1 bg-gray-800 text-white p-1 rounded-full cursor-pointer hover:bg-gray-700">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13.5V17h3.5l7.5-7.5a2.121 2.121 0 000-3l-3-3a2.121 2.121 0 00-3 0L9 10.5z" />
+                  </svg>
+                </div>
+              </label>
+              <input
+                type="file"
+                id="profilePictureInput"
+                accept="image/*"
+                className="hidden"
+                onChange={handleProfilePictureChange}
+              />
+              </div>
+              </div>
             <div className="space-y-2">
               <Label htmlFor="fullName">Full Name</Label>
               <div className="relative">
@@ -347,8 +400,17 @@ const Navbar = () => {
                 </Button>
               </DialogClose>
               <Button type="submit" className="flex items-center">
-                <Save className="mr-2 h-4 w-4" />
-                Save Changes
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" />
+                    Save Changes
+                  </>
+                )}
               </Button>
             </DialogFooter>
           </form>
