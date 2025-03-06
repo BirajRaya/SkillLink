@@ -282,8 +282,8 @@ const Categories = () => {
 
       {/* Add/Edit Category Modal */}
       {isAddCategoryModalOpen || isEditCategoryModalOpen ? (
-        <div className="fixed inset-0 flex justify-center items-center bg-gray-800 bg-opacity-50 z-50">
-          <div className="bg-white p-8 rounded-lg shadow-lg w-96">
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
             <h2 className="text-xl font-semibold mb-4">{isEditCategoryModalOpen ? "Edit Category" : "Add New Category"}</h2>
 
             {/* Category Name Input */}
