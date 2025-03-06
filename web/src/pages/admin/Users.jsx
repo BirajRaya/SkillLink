@@ -138,19 +138,44 @@ const Users = () => {
 
   // Handle email validation
   const handleEmailBlur = async () => {
-    if (userForm.email && /\S+@\S+\.\S+/.test(userForm.email)) {
-      if (isEditUserModalOpen && selectedUser && 
-          userForm.email.toLowerCase() === selectedUser.email.toLowerCase()) {
-        return;
-      }
-      
-      const emailExists = await checkEmailExists(userForm.email);
-      if (emailExists) {
-        setFormErrors(prev => ({
-          ...prev, 
-          email: "This email is already registered"
-        }));
-      }
+    const email = userForm.email.trim().toLowerCase(); // Convert to lowercase
+
+    if (!email) {
+      setFormErrors(prev => ({
+        ...prev,
+        email: "Email is required"
+      }));
+      return;
+    }
+
+    if (!/\S+@\S+\.\S+/.test(email)) {
+      setFormErrors(prev => ({
+        ...prev,
+        email: "Invalid email format"
+      }));
+      return;
+    }
+
+    if (!email.endsWith("@gmail.com")) {
+      setFormErrors(prev => ({
+        ...prev,
+        email: "Only Gmail addresses (@gmail.com) are allowed."
+      }));
+      return;
+    }
+
+    // checkung if we're editing a user and the email hasn't changed (case insensitive)
+    if (isEditUserModalOpen && selectedUser && 
+        email === selectedUser.email.toLowerCase()) {
+      return;
+    }
+
+    const emailExists = await checkEmailExists(email);
+    if (emailExists) {
+      setFormErrors(prev => ({
+        ...prev, 
+        email: "This email is already registered"
+      }));
     }
   };
 
@@ -164,11 +189,16 @@ const Users = () => {
       isValid = false;
     }
 
-    if (!userForm.email.trim()) {
-      errors.email = 'Email is required';
+    const email = userForm.email.trim().toLowerCase(); // Normalize to lowercase
+
+    if (!email) {
+      errors.email = "Email is required";
       isValid = false;
-    } else if (!/\S+@\S+\.\S+/.test(userForm.email)) {
-      errors.email = 'Invalid email format';
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
+      errors.email = "Invalid email format";
+      isValid = false;
+    } else if (!email.endsWith("@gmail.com")) {
+      errors.email = "Only Gmail addresses (@gmail.com) are allowed.";
       isValid = false;
     }
 
@@ -202,11 +232,26 @@ const Users = () => {
     e.preventDefault();
     if (!validateForm()) return;
 
+    // Check if email exists before adding
+    const emailExists = await checkEmailExists(userForm.email.trim().toLowerCase());
+    if (emailExists) {
+      setFormErrors(prev => ({
+        ...prev,
+        email: "This email is already registered"
+      }));
+      return;
+    }
+
     try {
       const formData = new FormData();
       Object.keys(userForm).forEach(key => {
         if (userForm[key] !== null) {
-          formData.append(key, userForm[key]);
+          // Make sure email is stored as lowercase
+          if (key === 'email') {
+            formData.append(key, userForm[key].trim().toLowerCase());
+          } else {
+            formData.append(key, userForm[key]);
+          }
         }
       });
 
@@ -235,11 +280,29 @@ const Users = () => {
     e.preventDefault();
     if (!validateForm()) return;
 
+    // Check if email exists before updating
+    const email = userForm.email.trim().toLowerCase();
+    if (email !== selectedUser.email.toLowerCase()) {
+      const emailExists = await checkEmailExists(email);
+      if (emailExists) {
+        setFormErrors(prev => ({
+          ...prev,
+          email: "This email is already registered"
+        }));
+        return;
+      }
+    }
+
     try {
       const formData = new FormData();
       Object.keys(userForm).forEach(key => {
         if (userForm[key] !== null && (key !== 'password' || userForm[key] !== '')) {
-          formData.append(key, userForm[key]);
+          // Make sure email is stored as lowercase
+          if (key === 'email') {
+            formData.append(key, userForm[key].trim().toLowerCase());
+          } else {
+            formData.append(key, userForm[key]);
+          }
         }
       });
 
@@ -343,8 +406,6 @@ const Users = () => {
 
   return (
     <div className="container mx-auto">
-
-
       {/* Header and Search */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-4xl font-bold">Users</h1>
@@ -460,12 +521,13 @@ const Users = () => {
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-white rounded-lg p-6 w-full max-w-md">
           <h2 className="text-xl font-semibold mb-4">Add New User</h2>
-          {formModalError && (
-            <div className="mb-4 p-2 bg-red-100 border border-red-400 text-red-700 rounded">
-              {formModalError}
-            </div>
-          )}
           <form onSubmit={handleAddUser} className="space-y-4">
+            {formModalError && (
+              <div className="mb-4 p-2 bg-red-100 border border-red-400 text-red-700 rounded">
+                {formModalError}
+              </div>
+            )}
+            
             <div>
               <label className="block text-sm font-medium text-gray-700">
                 Full Name *
@@ -607,12 +669,13 @@ const Users = () => {
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-white rounded-lg p-6 w-full max-w-md">
           <h2 className="text-xl font-semibold mb-4">Edit User</h2>
-          {formModalError && (
-            <div className="mb-4 p-2 bg-red-100 border border-red-400 text-red-700 rounded">
-              {formModalError}
-            </div>
-          )}
           <form onSubmit={handleEditUser} className="space-y-4">
+            {formModalError && (
+              <div className="mb-4 p-2 bg-red-100 border border-red-400 text-red-700 rounded">
+                {formModalError}
+              </div>
+            )}
+            
             <div>
               <label className="block text-sm font-medium text-gray-700">
                 Full Name *
