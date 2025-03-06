@@ -1,21 +1,38 @@
-import { useState } from 'react';
+/* eslint-disable no-unused-vars */
+// VendorDashboard.jsx - Main component file
+import { useState, useEffect } from 'react';
 import { useAuth } from '../../utils/AuthContext';
 import axios from 'axios';
-import {
-  User,
-  LogOut,
+import { 
+  Menu, 
+  User, 
+  ChevronDown, 
+  BellRing,
   Settings,
-  ChevronDown,
-  Mail,
-  Phone,
-  Lock,
-  Save,
-  Loader2,
-  X,
-  Home,
-  Eye,
-  EyeOff
+  Clock,
+  HelpCircle,
+  LogOut
 } from "lucide-react";
+
+// Component imports
+import Header from './components/Header';
+import Sidebar from './components/Sidebar';
+import ProfileDialog from './components/ProfileDialog';
+import AvailabilityForm from './components/AvailabilityForm';
+import NewServiceDialog from './components/NewServiceDialog';
+import SuccessAlertDialog from './components/SuccessAlertDialog';
+
+// Tab content components
+import DashboardTab from './tabs/DashboardTab';
+import AvailabilityTab from './tabs/AvailabilityTab';
+import ServicesTab from './tabs/ServicesTab';
+import BookingsTab from './tabs/BookingsTab';
+import MessagesTab from './tabs/MessagesTab';
+import StatsTab from './tabs/StatsTab';
+import ClientsTab from './tabs/ClientsTab';
+import SupportTab from './tabs/SupportTab';
+
+// UI components
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,34 +41,105 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-  DialogClose
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 
 const VendorDashboard = () => {
   const { currentUser, logout, setCurrentUser } = useAuth();
   const [showProfileDialog, setShowProfileDialog] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("dashboard");
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [showAvailabilityForm, setShowAvailabilityForm] = useState(false);
+  const [hasFilledAvailability, setHasFilledAvailability] = useState(false);
+  const [showNewServiceDialog, setShowNewServiceDialog] = useState(false);
+  const [showAlertDialog, setShowAlertDialog] = useState(false);
+  
+  const [availabilityData, setAvailabilityData] = useState({
+    status: "available", // available, partially-available, unavailable
+    workingDays: {
+      monday: true,
+      tuesday: true,
+      wednesday: true,
+      thursday: true,
+      friday: true,
+      saturday: false,
+      sunday: false
+    },
+    workingHours: {
+      start: "09:00",
+      end: "17:00"
+    },
+    responseTime: "same-day", // same-day, within-24h, within-48h
+    additionalNotes: ""
+  });
+  
   const [profileData, setProfileData] = useState({
     fullName: currentUser?.fullName || '',
-    profilePicture: currentUser.profilePicture || '',
+    profilePicture: currentUser?.profilePicture || '',
     email: currentUser?.email || '',
     phone: currentUser?.phone || '',
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
-    address: currentUser.address
+    address: currentUser?.address || ''
   });
+  
+  const [newService, setNewService] = useState({
+    title: '',
+    description: '',
+    category: '',
+    price: '',
+    duration: '',
+    location: 'onsite',
+    tags: ''
+  });
+
+  // Mock data for dashboard stats
+  const dashboardStats = {
+    totalBookings: 12,
+    pendingBookings: 3,
+    completedBookings: 8,
+    cancelledBookings: 1,
+    totalEarnings: 2450,
+    pendingPayments: 350,
+    averageRating: 4.8,
+    totalReviews: 7,
+    recentBookings: [
+      { id: 'BK1234', customer: 'Sarah Johnson', service: 'Plumbing Repair', date: '2023-06-12', status: 'completed', amount: 120 },
+      { id: 'BK1235', customer: 'Michael Brown', service: 'Electrical Installation', date: '2023-06-14', status: 'pending', amount: 250 },
+      { id: 'BK1236', customer: 'Emily Davis', service: 'Home Cleaning', date: '2023-06-18', status: 'pending', amount: 100 }
+    ],
+    popularServices: [
+      { service: 'Plumbing Repair', bookings: 5, earnings: 600 },
+      { service: 'Electrical Installation', bookings: 4, earnings: 1000 },
+      { service: 'Home Cleaning', bookings: 3, earnings: 300 }
+    ]
+  };
+
+  useEffect(() => {
+    // Check if user has filled availability form before
+    const checkAvailability = async () => {
+      try {
+        // Replace with your actual API endpoint
+        const response = await axios.get(`http://localhost:5000/vendor-availability/${currentUser.id}`);
+        if (response.data && response.data.availability) {
+          setAvailabilityData(response.data.availability);
+          // setHasFilledAvailability(true);
+        } else {
+          // If no availability data found, show the form
+          // setShowAvailabilityForm(true);
+          setHasFilledAvailability(false);
+        }
+      } catch (error) {
+        console.error("Error checking availability:", error);
+        // If error (likely no availability set), show the form
+        // setShowAvailabilityForm(true);
+        setHasFilledAvailability(false);
+      }
+    };
+    
+    checkAvailability();
+  }, [currentUser.id]);
 
   const handleProfileChange = (e) => {
     const { id, value } = e.target;
@@ -73,6 +161,62 @@ const VendorDashboard = () => {
     }
   };
 
+  const handleAvailabilityChange = (field, value) => {
+    if (field.includes('.')) {
+      const [parent, child] = field.split('.');
+      setAvailabilityData({
+        ...availabilityData,
+        [parent]: {
+          ...availabilityData[parent],
+          [child]: value
+        }
+      });
+    } else {
+      setAvailabilityData({
+        ...availabilityData,
+        [field]: value
+      });
+    }
+  };
+
+  const handleWorkingDayChange = (day, checked) => {
+    setAvailabilityData({
+      ...availabilityData,
+      workingDays: {
+        ...availabilityData.workingDays,
+        [day]: checked
+      }
+    });
+  };
+
+  const handleNewServiceChange = (field, value) => {
+    setNewService({
+      ...newService,
+      [field]: value
+    });
+  };
+  
+  const handleAvailabilitySubmit = async (e) => {
+    e.preventDefault();
+    
+    try {
+      setIsLoading(true);
+      // Replace with your actual API endpoint
+      await axios.post("http://localhost:5000/update-availability", {
+        vendorId: currentUser.id,
+        availability: availabilityData
+      });
+      
+      setHasFilledAvailability(true);
+      setShowAvailabilityForm(false);
+      setIsLoading(false);
+    } catch (error) {
+      console.error("Error updating availability:", error);
+      setError("Failed to update availability status. Please try again.");
+      setIsLoading(false);
+    }
+  };
+
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
 
@@ -82,7 +226,7 @@ const VendorDashboard = () => {
     }
 
     if (profileData.fullName.length < 5) {
-      setError("Full Name must be 6 charaacter long");
+      setError("Full Name must be at least 5 characters long");
       return;
     }
 
@@ -100,312 +244,204 @@ const VendorDashboard = () => {
           address: profileData.address
         });
       const updateUser = response.data.user;
-      setProfileData(updateUser);
+      setProfileData({
+        ...updateUser,
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      });
+      
       updateUser.role = currentUser.role;
       updateUser.id = currentUser.id;
       setCurrentUser(updateUser);
       localStorage.setItem('user', JSON.stringify(updateUser));
       setError("");
-
+      setShowProfileDialog(false);
     } catch (err) {
       console.error('profile change error:', err);
-      setError(err.response.data.message);
-      return;
-
-    }
-    finally {
+      setError(err.response?.data?.message || "Failed to update profile");
+    } finally {
       setIsLoading(false);
     }
-    // Close the dialog after updating
-    setShowProfileDialog(false);
   };
+  
+  const handleSubmitNewService = async (e) => {
+    e.preventDefault();
+    
+    try {
+      setIsLoading(true);
+      // Replace with your actual API endpoint
+      await axios.post("http://localhost:5000/add-service", {
+        vendorId: currentUser.id,
+        service: newService
+      });
+      
+      setShowNewServiceDialog(false);
+      setNewService({
+        title: '',
+        description: '',
+        category: '',
+        price: '',
+        duration: '',
+        location: 'onsite',
+        tags: ''
+      });
+      setIsLoading(false);
+      setShowAlertDialog(true);
+    } catch (error) {
+      console.error("Error adding service:", error);
+      setError("Failed to add service. Please try again.");
+      setIsLoading(false);
+    }
+  };
+
   const handleCancel = () => {
-    setProfileData(currentUser);
+    setProfileData({
+      ...currentUser,
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: ''
+    });
     setError("");
+  };
+
+  // Format currency
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2
+    }).format(amount);
+  };
+
+  // Get status badge color
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'completed':
+        return 'bg-green-100 text-green-800';
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'cancelled':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  // Render different content based on active tab
+  const renderContent = () => {
+    const commonProps = {
+      dashboardStats,
+      formatCurrency,
+      getStatusColor,
+      isLoading,
+      setActiveTab
+    };
+
+    switch(activeTab) {
+      case "dashboard":
+        return <DashboardTab {...commonProps} />;
+      case "availability":
+        return (
+          <AvailabilityTab 
+            availabilityData={availabilityData}
+            handleAvailabilityChange={handleAvailabilityChange}
+            handleWorkingDayChange={handleWorkingDayChange}
+            handleAvailabilitySubmit={handleAvailabilitySubmit}
+            isLoading={isLoading}
+          />
+        );
+      case "services":
+        return (
+          <ServicesTab 
+            setShowNewServiceDialog={setShowNewServiceDialog}
+            {...commonProps}
+          />
+        );
+      case "bookings":
+        return <BookingsTab {...commonProps} />;
+      case "messages":
+        return <MessagesTab />;
+      case "stats":
+        return <StatsTab {...commonProps} />;
+      case "clients":
+        return <ClientsTab />;
+      case "support":
+        return <SupportTab />;
+      default:
+        return <div>Select a tab from the sidebar</div>;
+    }
+  };
+
+  // If availability form needs to be shown and hasn't been filled, redirect to form
+  if (showAvailabilityForm && !hasFilledAvailability) {
+    return (
+      <AvailabilityForm 
+        availabilityData={availabilityData}
+        handleAvailabilityChange={handleAvailabilityChange}
+        handleWorkingDayChange={handleWorkingDayChange}
+        handleAvailabilitySubmit={handleAvailabilitySubmit}
+        isLoading={isLoading}
+      />
+    );
   }
 
-
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 flex flex-col">
       {/* Dashboard Header with Profile Actions */}
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16 items-center">
-            <h1 className="text-2xl font-bold text-gray-900">Vendor Dashboard</h1>
+      <Header 
+        currentUser={currentUser}
+        profileData={profileData}
+        sidebarOpen={sidebarOpen}
+        setSidebarOpen={setSidebarOpen}
+        setShowProfileDialog={setShowProfileDialog}
+        setActiveTab={setActiveTab}
+        logout={logout}
+      />
 
-            <div className="flex items-center">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="flex items-center space-x-2">
-                    <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-                      <User className="h-4 w-4 text-blue-600" />
-                    </div>
-                    <span>{currentUser?.fullName || 'Vendor'}</span>
-                    <ChevronDown className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    className="flex items-center"
-                    onClick={() => setShowProfileDialog(true)}
-                  >
-                    <Settings className="mr-2 h-4 w-4" />
-                    <span>Update Profile</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    className="flex items-center text-red-600"
-                    onClick={logout}
-                  >
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>Logout</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
+      {/* Main content with sidebar */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar */}
+        <Sidebar 
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          sidebarOpen={sidebarOpen}
+          availabilityData={availabilityData}
+        />
+
+        {/* Main content area */}
+        <div className="flex-1 overflow-auto p-4 md:p-6">
+          {renderContent()}
         </div>
       </div>
 
-      {/* Main Dashboard Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <h2 className="text-xl font-semibold mb-4">Welcome, {currentUser?.fullName || 'Vendor'}!</h2>
-          <p className="text-gray-600">
-            This is your vendor dashboard where you can manage your services, view statistics,
-            and interact with your customers.
-          </p>
-        </div>
+      {/* Dialogs */}
+      <ProfileDialog 
+        showProfileDialog={showProfileDialog}
+        setShowProfileDialog={setShowProfileDialog}
+        profileData={profileData}
+        handleProfileChange={handleProfileChange}
+        handleProfilePictureChange={handleProfilePictureChange}
+        handleProfileUpdate={handleProfileUpdate}
+        handleCancel={handleCancel}
+        isLoading={isLoading}
+        error={error}
+      />
 
-        {/* Dashboard content would go here */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-medium mb-2">Services</h3>
-            <p className="text-gray-600 mb-4">Manage your services and offerings</p>
-            <span className="inline-block bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-semibold">
-              0 Active
-            </span>
-          </div>
+      <NewServiceDialog 
+        showNewServiceDialog={showNewServiceDialog}
+        setShowNewServiceDialog={setShowNewServiceDialog}
+        newService={newService}
+        handleNewServiceChange={handleNewServiceChange}
+        handleSubmitNewService={handleSubmitNewService}
+        isLoading={isLoading}
+        error={error}
+      />
 
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-medium mb-2">Orders</h3>
-            <p className="text-gray-600 mb-4">View and manage customer orders</p>
-            <span className="inline-block bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-semibold">
-              0 Pending
-            </span>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-medium mb-2">Earnings</h3>
-            <p className="text-gray-600 mb-4">Track your revenue and payments</p>
-            <span className="inline-block bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-semibold">
-              $0.00
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Profile Update Dialog */}
-      <Dialog open={showProfileDialog} onOpenChange={setShowProfileDialog}>
-        <DialogContent className="sm:max-w-xlg">
-          <DialogHeader>
-            <DialogTitle>Update Profile</DialogTitle>
-            <DialogDescription>
-              Make changes to your profile information here.
-            </DialogDescription>
-          </DialogHeader>
-
-          <form onSubmit={handleProfileUpdate} className="space-y-4 py-6 w-full max-w-md mx-auto ">
-          <div className="space-y-2 text-center">
-              <Label htmlFor="profilePicture">Profile Picture</Label>
-              <div className="relative w-24 h-24 mx-auto">
-                <img
-                  src={`data:image/jpeg;base64,${profileData.profilePicture}`}
-                  alt="Profile"
-                  className="w-24 h-24 rounded-full object-cover border"
-                />
-                <label htmlFor="profilePictureInput">
-                <div className="absolute bottom-1 right-1 bg-gray-800 text-white p-1 rounded-full cursor-pointer hover:bg-gray-700">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13.5V17h3.5l7.5-7.5a2.121 2.121 0 000-3l-3-3a2.121 2.121 0 00-3 0L9 10.5z" />
-                  </svg>
-                </div>
-              </label>
-              <input
-                type="file"
-                id="profilePictureInput"
-                accept="image/*"
-                className="hidden"
-                onChange={handleProfilePictureChange}
-              />
-              </div>
-              </div>
-
-
-            {/* Full Name */}
-            <div className="space-y-2">
-              <Label htmlFor="fullName">Full Name</Label>
-              <div className="relative">
-                <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input
-                  id="fullName"
-                  value={profileData.fullName}
-                  onChange={handleProfileChange}
-                  className="pl-10"
-                  placeholder="Your full name"
-                  pattern="[A-Za-z\s]+"
-                  required
-                />
-              </div>
-            </div>
-
-            {/* Email */}
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input
-                  id="email"
-                  type="email"
-                  value={profileData.email}
-                  onChange={handleProfileChange}
-                  className="pl-10 bg-gray-100 cursor-not-allowed"
-                  placeholder="Your email address"
-                  readonly
-                />
-              </div>
-            </div>
-
-            {/* Phone Number */}
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input
-                  id="phone"
-                  value={profileData.phone}
-                  onChange={handleProfileChange}
-                  className="pl-10"
-                  placeholder="Your phone number"
-                  pattern="\d{10}"
-                  required
-                />
-              </div>
-            </div>
-
-            {/* Address */}
-            <div className="space-y-2">
-              <Label htmlFor="address">Address</Label>
-              <div className="relative">
-                <Home className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input
-                  id="address"
-                  value={profileData.address}
-                  onChange={handleProfileChange}
-                  className="pl-10"
-                  placeholder="Your address"
-                  required
-                />
-              </div>
-            </div>
-
-
-            {/* Change Password Section */}
-            <div className="pt-4 border-t">
-              <h4 className="text-sm font-medium mb-3">Change Password (Optional)</h4>
-
-              {/* Current Password */}
-              <div className="space-y-2">
-                <Label htmlFor="currentPassword">Current Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="currentPassword"
-                    type="password"
-                    value={profileData.currentPassword}
-                    onChange={handleProfileChange}
-                    className="pl-10"
-                    placeholder="Enter current password"
-                  />
-
-                </div>
-              </div>
-
-              {/* New Password */}
-              <div className="space-y-2">
-                <Label htmlFor="newPassword">New Password*</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="newPassword"
-                    type={showPassword.newPassword ? "text" : "password"}
-                    value={profileData.newPassword}
-                    onChange={handleProfileChange}
-                    className="pl-10 pr-10"
-                    placeholder="Enter new password (Min 7 char)"
-                    minLength={7}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(prev => ({ ...prev, newPassword: !prev.newPassword }))}
-                    className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
-                  >
-                    {showPassword.newPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Confirm Password */}
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm New Password*</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="confirmPassword"
-                    type={showPassword.confirmPassword ? "text" : "password"}
-                    value={profileData.confirmPassword}
-                    onChange={handleProfileChange}
-                    className="pl-10 pr-10"
-                    placeholder="Confirm new password (Min 7 char)"
-                    minLength={7}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(prev => ({ ...prev, confirmPassword: !prev.confirmPassword }))}
-                    className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
-                  >
-                    {showPassword.confirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-                {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
-              </div>
-
-            </div>
-            {/* Action Buttons */}
-            <DialogFooter className="flex space-x-2 justify-end pt-4">
-              <DialogClose asChild>
-                <Button type="button" variant="outline" className="flex items-center" onClick={handleCancel}>
-                  <X className="mr-2 h-4 w-4" />
-                  Cancel
-                </Button>
-              </DialogClose>
-              <Button type="submit" className="flex items-center">
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="mr-2 h-4 w-4" />
-                  Save Changes
-                </>
-              )}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <SuccessAlertDialog 
+        showAlertDialog={showAlertDialog}
+        setShowAlertDialog={setShowAlertDialog}
+      />
     </div>
   );
 };

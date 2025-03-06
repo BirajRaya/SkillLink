@@ -24,13 +24,6 @@ app.use(cors({
   credentials: true,
 }));
 
-// Detailed logging middleware
-app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
-  console.log('Request headers:', req.headers);
-  console.log('Request body:', req.body);
-  next();
-});
 
 // Body parsing middleware
 app.use(express.json({ limit: "10mb" })); 
