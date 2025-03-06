@@ -1,12 +1,14 @@
-const createCategory = async (client, { category_name, description }) => {
+const createCategory = async (client, { category_name, description, is_active }) => {
   const query = `
     INSERT INTO categories (category_name, description, is_active)
-    VALUES ($1, $2, TRUE)
+    VALUES ($1, $2, $3)
     RETURNING id, category_name, description, is_active;
   `;
-  const values = [category_name, description];
+  const values = [category_name, description, is_active];
   return client.query(query, values);
 };
+
+
 
 const getCategories = async (client, category_name = null) => {
   const query = category_name 
@@ -16,29 +18,30 @@ const getCategories = async (client, category_name = null) => {
   return client.query(query, values);
 };
 
-const updateCategory = async (client, id, { category_name, description }) => {
+const updateCategory = async (client, id, { category_name, description, is_active }) => {
   const query = `
     UPDATE categories
-    SET category_name = $1, description = $2
-    WHERE id = $3
+    SET category_name = $1, description = $2, is_active = $3
+    WHERE id = $4
     RETURNING id, category_name, description, is_active;
   `;
-  const values = [category_name, description, id];
+  const values = [category_name, description, is_active, id];
   return client.query(query, values);
 };
+
 
 const deleteCategory = async (client, id) => {
   const query = 'DELETE FROM categories WHERE id = $1 RETURNING id';
   return client.query(query, [id]);
 };
 
-const createService = async (client, { name, description, category_id, vendor_id, price, location, image_url }) => {
+const createService = async (client, { name, description, category_id, vendor_id, price, location, image_url, status }) => {
   const query = `
     INSERT INTO services (name, description, category_id, vendor_id, price, location, image_url, status)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, 'Active')
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
     RETURNING id, name, description, category_id, vendor_id, price, location, image_url, status;
   `;
-  const values = [name, description, category_id, vendor_id, price, location, image_url];
+  const values = [name, description, category_id, vendor_id, price, location, image_url, status];
   return client.query(query, values);
 };
 
@@ -64,14 +67,14 @@ JOIN users u ON s.vendor_id = u.id;
   return client.query(query);
 };
 
-const updateService = async (client, id, { name, description, category_id, price, location, image_url }) => {
+const updateService = async (client, id, { name, description, category_id, price, location, image_url, status }) => {
   const query = `
     UPDATE services
-    SET name = $1, description = $2, category_id = $3, price = $4, location = $5, image_url = $6
-    WHERE id = $7
+    SET name = $1, description = $2, category_id = $3, price = $4, location = $5, image_url = $6, status = $7
+    WHERE id = $8
     RETURNING id, name, description, category_id, vendor_id, price, location, image_url, status;
   `;
-  const values = [name, description, category_id, price, location, image_url, id];
+  const values = [name, description, category_id, price, location, image_url, status, id];
   return client.query(query, values);
 };
 
@@ -86,7 +89,6 @@ const getActiveCategories = async (client) => {
   
   try {
     const result = await client.query(query, values);
-    console.log("Result:", result.rows);  // Logging the result rows
     return result.rows;  // Return the active categories
   } catch (err) {
     console.error('Error fetching categories:', err);
@@ -100,7 +102,6 @@ const getActiveVendors = async (client) => {
   const values = ['vendor', 'active']; // 'vendor' role and 'active' status as string
   try {
     const result = await client.query(query, values);
-    console.log("Active vendors:", result.rows);  // Log the result to check
     return result.rows; // Return an array of active vendors
   } catch (err) {
     console.error('Error fetching active vendors:', err);

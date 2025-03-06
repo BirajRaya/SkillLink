@@ -97,7 +97,6 @@ const signup = async (req, res) => {
  */
 const signin = async (req, res) => {
   const client = await pool.connect();
-  console.log(req.body);
   try {
     await client.query('BEGIN');
 

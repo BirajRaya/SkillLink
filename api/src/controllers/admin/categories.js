@@ -3,24 +3,41 @@ const { createCategory, getCategories, updateCategory, deleteCategory } = requir
 
 // Add a new category
 const addCategory = async (req, res) => {
-  console.log('Received request:', req.body); // Debugging
-  const { category_name, description } = req.body;
+  const { category_name, description, is_active } = req.body;
 
-  if (!category_name || !description) {
-    return res.status(400).json({ message: 'Category name and description are required' });
+  if (!category_name || !description || !is_active) {
+    return res.status(400).json({ message: 'Category name, description, and status are required' });
   }
+
+  
 
   try {
     const client = await pool.connect();
-    const result = await createCategory(client, { category_name, description });
+
+    // Check if the category already exists (case-insensitive)
+    const existingCategory = await client.query(
+      'SELECT * FROM categories WHERE LOWER(category_name) = LOWER($1)', 
+      [category_name]
+    );
+
+    if (existingCategory.rows.length > 0) {
+      client.release();
+      return res.status(400).json({ message: 'Category already exists' });
+    }
+
+    // If not exist, create a new category with the correct boolean value for is_active
+    const result = await createCategory(client, { category_name, description, is_active});
     client.release();
-    console.log('Inserted category:', result.rows[0]); // Debugging
+    
     res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error('Error adding category:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
+
+
+
 
 // Get all categories
 const getAllCategories = async (req, res) => {
@@ -38,15 +55,15 @@ const getAllCategories = async (req, res) => {
 // Update category by ID
 const updateCategoryById = async (req, res) => {
   const { id } = req.params;
-  const { category_name, description } = req.body;
+  const { category_name, description, is_active  } = req.body;
 
-  if (!category_name || !description) {
-    return res.status(400).json({ message: 'Category name and description are required' });
+  if (!category_name || !description || !is_active ) {
+    return res.status(400).json({ message: 'Category name, description, and status are required' });
   }
 
   try {
     const client = await pool.connect();
-    const result = await updateCategory(client, id, { category_name, description });
+    const result = await updateCategory(client, id, { category_name, description, is_active  });
     client.release();
     if (result.rows.length === 0) {
       return res.status(404).json({ message: 'Category not found' });
@@ -57,6 +74,7 @@ const updateCategoryById = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+
 
 // Delete category by ID
 const deleteCategoryById = async (req, res) => {

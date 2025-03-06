@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Edit, Trash2, Search, PlusCircle } from "lucide-react";
 import api from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
+
 
 const Categories = () => {
   // State Management
@@ -12,9 +14,16 @@ const Categories = () => {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [categoryName, setCategoryName] = useState('');
   const [description, setDescription] = useState('');
+  const [isActive, setIsActive] = useState(true); // Default to 'active'
   const [message, setMessage] = useState(null); // Error message state
   const [successMessage, setSuccessMessage] = useState(""); // Success message state for toast
-  const [errorMessages, setErrorMessages] = useState({}); // Validation error messages
+  const [errorMessages, setErrorMessages] = useState({
+    categoryName: '',
+      description: '',
+  }); 
+
+
+   const { toast } = useToast();
 
   // Fetch categories from backend
   const fetchCategories = async () => {
@@ -29,9 +38,14 @@ const Categories = () => {
 
       clearTimeout(timeoutId); // Clear the timeout once the response is received
       setCategories(response.data);
+     
 
     } catch (error) {
-      let errorMsg = "Failed to fetch categories";
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.response?.data?.message || "Failed to fetch categories"
+      });
 
       if (error.name === 'AbortError' || error.code === 'ECONNABORTED') {
         errorMsg = "Request timed out while loading categories. Please refresh the page.";
@@ -56,40 +70,68 @@ const Categories = () => {
     setSelectedCategory(category);
     setCategoryName(category.category_name);
     setDescription(category.description);
+    setIsActive(category.is_active); // Set the selected category's is_active status
     setIsEditCategoryModalOpen(true);
   };
-
+  
   const handleDelete = async (id) => {
-    try {
-      const response = await api.delete(`/categories/delete-category/${id}`);
-      if (response.status === 200) {
-        fetchCategories(); // Refresh categories after deletion
+    if (window.confirm("Are you sure you want to delete this category?")) {
+      try {
+        const response = await api.delete(`/categories/delete-category/${id}`);
+        if (response.status === 200) {
+          fetchCategories(); // Refresh categories after deletion
+          toast({
+            title: "Success",
+            description: `Category  has been Deleted successfully`
+          });
+        }
+      } catch (error) {
+        console.error("Error deleting category:", error);
       }
-    } catch (error) {
-      console.error("Error deleting category:", error);
     }
   };
 
   const validateForm = () => {
-    const errors = {};
-
+    let isValid = true;
+    const errors = {
+      categoryName: '',
+      description: '',
+    };
+    
+  
     if (!categoryName.trim()) {
       errors.categoryName = "Category name is required";
+      isValid = false;
     } else if (categoryName.trim().length < 3) {
       errors.categoryName = "Category name must be at least 3 characters long";
+      isValid = false;
+    } else if (
+      categories.some(
+        (category) =>
+          category.category_name.toLowerCase() === categoryName.trim().toLowerCase() &&
+          category.id !== selectedCategory?.id // Exclude the currently selected category from the check
+      )
+    ) {
+      errors.categoryName = "Category name already exists";
+      isValid = false;
     }
-
+  
     if (!description.trim()) {
       errors.description = "Description is required";
+      isValid = false;
     } else if (description.trim().length < 10) {
       errors.description = "Description must be at least 10 characters long";
+      isValid = false;
+    } else{
+      errors.description = "";
     }
-
+  
     setErrorMessages(errors);
-
-    // If there are errors, return false, otherwise return true
-    return Object.keys(errors).length === 0;
+  
+    return isValid;
   };
+  
+  
 
   const handleAddCategory = async () => {
     if (!validateForm()) {
@@ -97,19 +139,20 @@ const Categories = () => {
     }
 
     try {
-      const newCategory = { category_name: categoryName, description };
+      const newCategory = { category_name: categoryName, description, is_active: isActive,};
       const response = await api.post('/categories/add-category', newCategory);
       if (response.status === 201) {
         fetchCategories(); // Refresh categories after adding
         setIsAddCategoryModalOpen(false); // Close modal
         setCategoryName(''); // Clear the form inputs
         setDescription('');
+        setIsActive(true); // Reset the is_active value
 
-        // Display success toast
-        setSuccessMessage("Category added successfully!");
+        toast({
+          title: "Success",
+          description: `Category ${response.data.category_name} has been added successfully`
+        });
 
-        // Hide the toast after 3 seconds
-        setTimeout(() => setSuccessMessage(""), 3000);
       }
     } catch (error) {
       console.error("Error adding category:", error);
@@ -122,19 +165,20 @@ const Categories = () => {
     }
 
     try {
-      const updatedCategory = { category_name: categoryName, description };
+      const updatedCategory = { category_name: categoryName, description, is_active: isActive };
       const response = await api.put(`/categories/update-category/${selectedCategory.id}`, updatedCategory);
       if (response.status === 200) {
         fetchCategories(); // Refresh categories after editing
         setIsEditCategoryModalOpen(false); // Close modal
         setCategoryName(''); // Clear the form inputs
         setDescription('');
+        setIsActive(true); 
 
-        // Display success toast
-        setSuccessMessage("Category updated successfully!");
+        toast({
+          title: "Success",
+          description: `Category ${response.data.category_name} has been Updated successfully`
+        });
 
-        // Hide the toast after 3 seconds
-        setTimeout(() => setSuccessMessage(""), 3000);
       }
     } catch (error) {
       console.error("Error editing category:", error);
@@ -142,16 +186,7 @@ const Categories = () => {
   };
 
   return (
-    <div className="space-y-4">
-      {/* Success Toast */}
-      {successMessage && (
-        <div id="status-message" className="mb-4 p-4 rounded-md flex items-center bg-green-100 border border-green-300 text-green-800">
-          <div className="w-6 h-6 mr-3 rounded-full flex items-center justify-center bg-green-500 text-white">
-            ✓
-          </div>
-          <span className="font-medium">{successMessage}</span>
-        </div>
-      )}
+    <div className="space-y-4">      
 
       {/* Header with search bar and Add Category button */}
       <div className="flex justify-between items-center">
@@ -181,22 +216,26 @@ const Categories = () => {
       </div>
 
       {/* Categories Table */}
-      <div className="overflow-x-auto bg-white shadow rounded-lg p-4">
-        <table className="min-w-full text-sm text-left">
-          <thead>
-            <tr className="bg-gray-200">
-              <th className="py-2 px-4">Category Name</th>
-              <th className="py-2 px-4">Description</th>
-              <th className="py-2 px-4">Active</th>
-              <th className="py-2 px-4">Actions</th>
+      <div className="bg-white shadow overflow-hidden rounded-lg">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category Name</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Active</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="bg-white divide-y divide-gray-200">
             {isLoading ? (
               <tr>
-                <td colSpan="4" className="py-2 px-4 text-center">Loading...</td>
+                <td colSpan="4" className="text-center py-4">Loading categories...</td>
               </tr>
-            ) : categories.length > 0 ? (
+            ) : categories.length === 0 ? (
+              <tr>
+                <td colSpan="4" className="text-center py-4">No categories available</td>
+              </tr>
+            ) : (
               categories
                 .filter((category) =>
                   category.category_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -204,31 +243,38 @@ const Categories = () => {
                 )
                 .map((category) => (
                   <tr key={category.id}>
-                    <td className="py-2 px-4">{category.category_name}</td>
-                    <td className="py-2 px-4">{category.description}</td>
-                    <td className="py-2 px-4">
-                      {category.is_active ? 'Yes' : 'No'}
+                    <td className="px-6 py-4">
+                      <div className="text-sm font-medium text-gray-900">{category.category_name}</div>
                     </td>
-                    <td className="py-2 px-4 flex space-x-2">
-                      <button
-                        className="text-blue-500 hover:text-blue-600"
-                        onClick={() => handleEdit(category)}
-                      >
-                        <Edit />
-                      </button>
-                      <button
-                        className="text-red-500 hover:text-red-600"
-                        onClick={() => handleDelete(category.id)}
-                      >
-                        <Trash2 />
-                      </button>
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-gray-900 max-w-[200px] truncate" title={category.description}>
+                        {category.description}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        category.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                        {category.is_active ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex space-x-2">
+                        <button
+                          className="text-blue-500 hover:text-blue-700"
+                          onClick={() => handleEdit(category)}
+                        >
+                          <Edit className="h-5 w-5" />
+                        </button>
+                        <button
+                          className="text-red-500 hover:text-red-700"
+                          onClick={() => handleDelete(category.id)}
+                        >
+                          <Trash2 className="h-5 w-5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
-            ) : (
-              <tr>
-                <td colSpan="4" className="py-2 px-4 text-center">No categories available</td>
-              </tr>
             )}
           </tbody>
         </table>
@@ -237,56 +283,89 @@ const Categories = () => {
       {/* Add/Edit Category Modal */}
       {isAddCategoryModalOpen || isEditCategoryModalOpen ? (
         <div className="fixed inset-0 flex justify-center items-center bg-gray-800 bg-opacity-50 z-50">
-          <div className="bg-white rounded-lg p-6 shadow-lg w-96">
-            <h2 className="text-xl font-semibold mb-4">
-              {isEditCategoryModalOpen ? 'Edit Category' : 'Add New Category'}
-            </h2>
-            <form>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700">Category Name</label>
-                <input
-                  type="text"
-                  className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md"
-                  value={categoryName}
-                  onChange={(e) => setCategoryName(e.target.value)}
-                />
-                {errorMessages.categoryName && (
-                  <span className="text-red-500 text-xs">{errorMessages.categoryName}</span>
-                )}
-              </div>
+          <div className="bg-white p-8 rounded-lg shadow-lg w-96">
+            <h2 className="text-xl font-semibold mb-4">{isEditCategoryModalOpen ? "Edit Category" : "Add New Category"}</h2>
 
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700">Description</label>
-                <textarea
-                  className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                />
-                {errorMessages.description && (
-                  <span className="text-red-500 text-xs">{errorMessages.description}</span>
-                )}
-              </div>
+            {/* Category Name Input */}
+            <div className="mb-4">
+              <label htmlFor="categoryName" className="block text-sm font-medium text-gray-700">Category Name</label>
+              <input
+                type="text"
+                id="categoryName"
+                value={categoryName}
+                onChange={(e) => setCategoryName(e.target.value)}
+                onBlur={() => {
+                  if (!categoryName.trim()) {
+                    setErrorMessages({...errorMessages, categoryName: 'Category name is required'});
+                  } else if (categoryName.length < 3) {
+                    setErrorMessages({...errorMessages, categoryName: 'Category name must be at least 3 characters'});
+                  } else {
+                    setErrorMessages({...errorMessages, categoryName: ''});
+                  }
+                }}
+                className="mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              />
+              {errorMessages.categoryName && (
+                <p className="text-red-500 text-sm mt-1">{errorMessages.categoryName}</p>
+              )}
+            </div>
 
-              <div className="flex justify-end space-x-2">
-                <button
-                  type="button"
-                  className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600"
-                  onClick={() => {
-                    setIsAddCategoryModalOpen(false);
-                    setIsEditCategoryModalOpen(false);
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
-                  onClick={isEditCategoryModalOpen ? handleEditCategory : handleAddCategory}
-                >
-                  Save Category
-                </button>
-              </div>
-            </form>
+            {/* Description Input */}
+            <div className="mb-4">
+              <label htmlFor="description" className="block text-sm font-medium text-gray-700">Description</label>
+              <textarea
+                id="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                onBlur={() => {
+                  if (!description.trim()) {
+                    setErrorMessages({...errorMessages, description: 'Description is required'});
+                  } else if (description.length < 10) {
+                    setErrorMessages({...errorMessages, description: 'Description must be at least 10 characters'});
+                  } else {
+                    setErrorMessages({...errorMessages, description: ''});
+                  }
+                }}
+                className="mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                rows="3"
+              />
+              {errorMessages.description && (
+                <p className="text-red-500 text-sm mt-1">{errorMessages.description}</p>
+              )}
+            </div>
+
+            {/* Active/Inactive Dropdown */}
+            <div className="mb-4">
+              <label htmlFor="is_active" className="block text-sm font-medium text-gray-700">Status</label>
+              <select
+                id="is_active"
+                value={isActive}
+                onChange={(e) => setIsActive(e.target.value)}
+                className="mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="true">Active</option>
+                <option value="false">Inactive</option>
+              </select>
+            </div>
+
+            {/* Modal Buttons */}
+            <div className="flex justify-between">
+              <button
+                onClick={isAddCategoryModalOpen ? handleAddCategory : handleEditCategory}
+                className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
+              >
+                {isAddCategoryModalOpen ? 'Add Category' : 'Update Category'}
+              </button>
+              <button
+                onClick={() => {
+                  setIsAddCategoryModalOpen(false);
+                  setIsEditCategoryModalOpen(false);
+                }}
+                className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       ) : null}
