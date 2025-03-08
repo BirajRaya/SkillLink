@@ -1,17 +1,17 @@
 /* eslint-disable react/prop-types */
 // components/ProfileDialog.jsx
-import { useState } from 'react';
-import { 
-  User, 
-  Mail, 
-  Phone, 
-  Lock, 
-  Home, 
-  Eye, 
-  EyeOff, 
-  Save, 
-  Loader2, 
-  X 
+import { useState, useEffect } from 'react';
+import {
+  User,
+  Mail,
+  Phone,
+  Lock,
+  Home,
+  Eye,
+  EyeOff,
+  Save,
+  Loader2,
+  X
 } from "lucide-react";
 import {
   Dialog,
@@ -26,12 +26,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 
-const ProfileDialog = ({ 
-  showProfileDialog, 
-  setShowProfileDialog, 
-  profileData, 
-  handleProfileChange, 
-  handleProfilePictureChange, 
+
+const ProfileDialog = ({
+  showProfileDialog,
+  setShowProfileDialog,
+  profileData,
+  handleProfileChange,
+  handleProfilePictureChange,
   handleProfileUpdate,
   handleCancel,
   isLoading,
@@ -58,7 +59,7 @@ const ProfileDialog = ({
             <div className="relative w-24 h-24 mx-auto">
               {profileData.profilePicture ? (
                 <img
-                  src={`data:image/jpeg;base64,${profileData.profilePicture}`}
+                  src={`${profileData.profilePicture}`}
                   alt="Profile"
                   className="w-24 h-24 rounded-full object-cover border"
                 />
@@ -160,14 +161,22 @@ const ProfileDialog = ({
                 <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                 <Input
                   id="currentPassword"
-                  type="password"
+                  type={showPassword.currentPassword ? "text" : "password"}
                   value={profileData.currentPassword}
                   onChange={handleProfileChange}
-                  className="pl-10"
+                  className="pl-10 pr-10"
                   placeholder="Enter current password"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(prev => ({ ...prev, currentPassword: !prev.currentPassword }))}
+                  className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                >
+                  {showPassword.currentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
               </div>
             </div>
+
 
             {/* New Password */}
             <div className="space-y-2">
@@ -218,7 +227,7 @@ const ProfileDialog = ({
               </div>
             </div>
           </div>
-          
+
           {/* Action Buttons */}
           <DialogFooter className="flex space-x-2 justify-end pt-4">
             <DialogClose asChild>

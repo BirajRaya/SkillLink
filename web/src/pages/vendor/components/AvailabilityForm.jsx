@@ -92,39 +92,6 @@ const AvailabilityForm = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <Label htmlFor="notice-initial">Notice Required for Bookings</Label>
-              <Select 
-                value={availabilityData.notice} 
-                onValueChange={(value) => handleAvailabilityChange("notice", value)}
-              >
-                <SelectTrigger id="notice-initial">
-                  <SelectValue placeholder="Select required notice" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="0">Same day</SelectItem>
-                  <SelectItem value="1">1 day</SelectItem>
-                  <SelectItem value="2">2 days</SelectItem>
-                  <SelectItem value="3">3 days</SelectItem>
-                  <SelectItem value="7">1 week</SelectItem>
-                  <SelectItem value="14">2 weeks</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="travelRadius-initial">How far can you travel? (km)</Label>
-              <Input
-                id="travelRadius-initial"
-                type="number"
-                min="0"
-                step="1"
-                value={availabilityData.travelRadius}
-                onChange={(e) => handleAvailabilityChange("travelRadius", e.target.value)}
-              />
-            </div>
-          </div>
-
           <div className="space-y-2">
             <Label htmlFor="responseTime-initial">Typical Response Time</Label>
             <Select 
