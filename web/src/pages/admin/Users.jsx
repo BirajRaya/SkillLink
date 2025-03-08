@@ -37,7 +37,7 @@ const Users = () => {
     phoneNumber: '',
     address: '',
     password: '',
-    profilePicture: null,
+    profilePicture: '',
     isActive: 'active'
   });
 
@@ -59,7 +59,7 @@ const Users = () => {
       phoneNumber: '',
       address: '',
       password: '',
-      profilePicture: null,
+      profilePicture: '',
       isActive: 'active'
     });
     setFormErrors({});
@@ -113,13 +113,26 @@ const Users = () => {
   // Handle Input Changes
   const handleInputChange = (e) => {
     const { id, value, files } = e.target;
+
     setFormModalError('');
     
     if (id === 'profilePicture' && files) {
-      setUserForm(prev => ({
-        ...prev,
-        profilePicture: files[0]
-      }));
+      const file = files[0];
+      if (file) {
+        const reader = new FileReader();
+        
+        reader.onloadend = () => {
+          const base64String = reader.result;  
+                          
+          setUserForm(prev => ({
+              ...prev,
+              [id]: reader.result
+            }));
+        };
+        console.log(userForm);
+        
+        reader.readAsDataURL(file);
+      }
       return;
     }
 
@@ -296,8 +309,15 @@ const Users = () => {
     try {
       const formData = new FormData();
       Object.keys(userForm).forEach(key => {
-        if (userForm[key] !== null && (key !== 'password' || userForm[key] !== '')) {
-          // Make sure email is stored as lowercase
+        // For profile picture, only append if it's a new file (starts with data:image)
+        if (key === 'profilePicture') {
+         
+          if (userForm[key]) {
+            formData.append(key, userForm[key]);
+          }
+        } 
+        // For other fields, include them if they're not null and not an empty password
+        else if (userForm[key] !== null && (key !== 'password' || userForm[key] !== '')) {
           if (key === 'email') {
             formData.append(key, userForm[key].trim().toLowerCase());
           } else {
@@ -358,7 +378,7 @@ const Users = () => {
       phoneNumber: user.phone_number,
       address: user.address,
       password: '',
-      profilePicture: null,
+      profilePicture:user.profile_picture || '' ,
       isActive: user.is_active
     });
     setIsEditUserModalOpen(true);

@@ -43,7 +43,7 @@ const SignupPage = () => {
       // setFormData({ ...formData, profilePicture: e.target.files[0].name });
       const reader = new FileReader();
       reader.onloadend = () => {
-        const base64String = reader.result.split(",")[1];
+        const base64String = reader.result;
         setFormData({
           ...formData,
           profilePicture: base64String,

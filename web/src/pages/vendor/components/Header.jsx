@@ -57,7 +57,7 @@ import {
                   >
                     {profileData.profilePicture ? (
                       <img 
-                        src={`data:image/jpeg;base64,${profileData.profilePicture}`} 
+                        src={`${profileData.profilePicture}`} 
                         alt="Profile" 
                         className="h-9 w-9 rounded-full object-cover border-2 border-blue-100"
                       />

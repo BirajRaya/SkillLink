@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Briefcase, User, LogOut, Settings, Mail, Phone, Lock, Save, X, Eye, EyeOff,Loader2 } from "lucide-react";
+import { Briefcase, User, LogOut, Settings, Mail, Phone, Lock, Save, X, Eye, EyeOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link, useLocation } from 'react-router-dom';
 import {
@@ -39,7 +39,7 @@ const Navbar = () => {
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
-    profilePicture:null,
+    profilePicture: null,
     address: ''
   });
 
@@ -85,7 +85,7 @@ const Navbar = () => {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        const base64String = reader.result.split(",")[1];
+        const base64String = reader.result;
         setProfileData({
           ...profileData,
           profilePicture: base64String,
@@ -101,12 +101,11 @@ const Navbar = () => {
       setError("Passwords do not match");
       return;
     }
-    
-    if(profileData.fullName.length < 5)
-      {
-        setError("Full Name must be 6 charaacter long");
-        return;
-      }
+
+    if (profileData.fullName.length < 5) {
+      setError("Full Name must be 6 charaacter long");
+      return;
+    }
 
     try {
       setIsLoading(true);
@@ -182,7 +181,11 @@ const Navbar = () => {
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="flex items-center space-x-2">
                       <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-                        <User className="h-4 w-4 text-blue-600" />
+                        <img
+                          src={`${currentUser.profilePicture}`}
+                          alt="Profile"
+                          className="w-9 h-9 rounded-full object-cover border"
+                        />
                       </div>
                       <span>{currentUser?.fullName || 'User'}</span>
                     </Button>
@@ -239,30 +242,30 @@ const Navbar = () => {
           </DialogHeader>
 
           <form onSubmit={handleProfileUpdate} className="space-y-4 py-4">
-          <div className="space-y-2 text-center">
+            <div className="space-y-2 text-center">
               <Label htmlFor="profilePicture">Profile Picture</Label>
               <div className="relative w-24 h-24 mx-auto">
                 <img
-                  src={`data:image/jpeg;base64,${profileData.profilePicture}`}
+                  src={`${profileData.profilePicture}`}
                   alt="Profile"
                   className="w-24 h-24 rounded-full object-cover border"
                 />
                 <label htmlFor="profilePictureInput">
-                <div className="absolute bottom-1 right-1 bg-gray-800 text-white p-1 rounded-full cursor-pointer hover:bg-gray-700">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13.5V17h3.5l7.5-7.5a2.121 2.121 0 000-3l-3-3a2.121 2.121 0 00-3 0L9 10.5z" />
-                  </svg>
-                </div>
-              </label>
-              <input
-                type="file"
-                id="profilePictureInput"
-                accept="image/*"
-                className="hidden"
-                onChange={handleProfilePictureChange}
-              />
+                  <div className="absolute bottom-1 right-1 bg-gray-800 text-white p-1 rounded-full cursor-pointer hover:bg-gray-700">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13.5V17h3.5l7.5-7.5a2.121 2.121 0 000-3l-3-3a2.121 2.121 0 00-3 0L9 10.5z" />
+                    </svg>
+                  </div>
+                </label>
+                <input
+                  type="file"
+                  id="profilePictureInput"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleProfilePictureChange}
+                />
               </div>
-              </div>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="fullName">Full Name</Label>
               <div className="relative">
@@ -335,14 +338,22 @@ const Navbar = () => {
                   <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input
                     id="currentPassword"
-                    type="password"
+                    type={showPassword.currentPassword ? "text" : "password"}
                     value={profileData.currentPassword}
                     onChange={handleProfileChange}
                     className="pl-10"
                     placeholder="Enter current password"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(prev => ({ ...prev, currentPassword: !prev.currentPassword }))}
+                    className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                  >
+                    {showPassword.currentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
                 </div>
               </div>
+
 
               <div className="space-y-2 mt-2">
                 <Label htmlFor="newPassword">New Password</Label>

@@ -10,6 +10,7 @@ const authRoutes = require("./src/routes/authRoutes");
 const adminRoutes = require("./src/routes/adminRoutes");
 const categoriesRoutes = require('./src/routes/categoriesRoutes');
 const serviceRoutes = require('./src/routes/serviceRoutes');
+const vendorRoutes = require('./src/routes/vendorRoutes');
 
 
 // Create the Express App
@@ -37,6 +38,7 @@ app.use("/", authRoutes);
 app.use("/admin", adminRoutes);  
 app.use("/categories", categoriesRoutes);
 app.use("/services", serviceRoutes);
+app.use("/vendors" , vendorRoutes);
 
 // Global error handling middleware
 app.use((err, req, res, next) => {

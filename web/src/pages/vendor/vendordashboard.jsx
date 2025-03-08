@@ -121,19 +121,20 @@ const VendorDashboard = () => {
     const checkAvailability = async () => {
       try {
         // Replace with your actual API endpoint
-        const response = await axios.get(`http://localhost:5000/vendor-availability/${currentUser.id}`);
-        if (response.data && response.data.availability) {
-          setAvailabilityData(response.data.availability);
+        const response = await axios.get(`http://localhost:5000/vendors/getAvailability/${currentUser.id}`);
+        if (response.data) {
+          setAvailabilityData(response.data);
+          console.log(availabilityData);
           // setHasFilledAvailability(true);
         } else {
           // If no availability data found, show the form
-          // setShowAvailabilityForm(true);
+          setShowAvailabilityForm(true);
           setHasFilledAvailability(false);
         }
       } catch (error) {
         console.error("Error checking availability:", error);
         // If error (likely no availability set), show the form
-        // setShowAvailabilityForm(true);
+        setShowAvailabilityForm(true);
         setHasFilledAvailability(false);
       }
     };
@@ -151,7 +152,7 @@ const VendorDashboard = () => {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        const base64String = reader.result.split(",")[1];
+        const base64String = reader.result;        
         setProfileData({
           ...profileData,
           profilePicture: base64String,
@@ -202,7 +203,7 @@ const VendorDashboard = () => {
     try {
       setIsLoading(true);
       // Replace with your actual API endpoint
-      await axios.post("http://localhost:5000/update-availability", {
+      await axios.post("http://localhost:5000/vendors/update-availability", {
         vendorId: currentUser.id,
         availability: availabilityData
       });
@@ -210,6 +211,7 @@ const VendorDashboard = () => {
       setHasFilledAvailability(true);
       setShowAvailabilityForm(false);
       setIsLoading(false);
+      setActiveTab("dashboard");
     } catch (error) {
       console.error("Error updating availability:", error);
       setError("Failed to update availability status. Please try again.");
@@ -349,6 +351,7 @@ const VendorDashboard = () => {
             handleWorkingDayChange={handleWorkingDayChange}
             handleAvailabilitySubmit={handleAvailabilitySubmit}
             isLoading={isLoading}
+            setActiveTab={setActiveTab} 
           />
         );
       case "services":
