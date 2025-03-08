@@ -118,11 +118,72 @@ const getAllActiveVendors = async (req, res) => {
   }
 };
 
+
+// Get service details by ID
+const getServiceDetailsById = async (req, res) => {
+  const { id } = req.params;
+  let client;
+  try {
+    client = await pool.connect();
+    const result = await getServiceDetails(client, id);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Service not found' });
+    }
+    res.status(200).json(result.rows[0]);
+  } catch (error) {
+    console.error('Error fetching service details:', error);
+    res.status(500).json({ message: 'Server error' });
+  } finally {
+    if (client) client.release();
+  }
+};
+
+// Add a new review
+const addReview = async (req, res) => {
+  const { service_id, rating, comment } = req.body;
+  const user_id = req.user.id;
+
+  if (!service_id || !rating) {
+    return res.status(400).json({ message: 'Service ID and rating are required' });
+  }
+
+  let client;
+  try {
+    client = await pool.connect();
+    const result = await createReview(client, { service_id, user_id, rating, comment });
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Error adding review:', error);
+    res.status(500).json({ message: 'Server error' });
+  } finally {
+    if (client) client.release();
+  }
+};
+
+// Get reviews by service ID
+const getReviewsByServiceId = async (req, res) => {
+  const { id } = req.params;
+  let client;
+  try {
+    client = await pool.connect();
+    const result = await getReviewsByServiceId(client, id);
+    res.status(200).json(result.rows);
+  } catch (error) {
+    console.error('Error fetching reviews:', error);
+    res.status(500).json({ message: 'Server error' });
+  } finally {
+    if (client) client.release();
+  }
+};
+
 module.exports = {
   addService,
   getAllServices,
   updateServiceById,
   deleteServiceById,
   getAllActiveCategories,
-  getAllActiveVendors
+  getAllActiveVendors,
+  getServiceDetailsById,
+  addReview,
+  getReviewsByServiceId
 };

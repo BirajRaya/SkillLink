@@ -1,5 +1,5 @@
 import { createContext, useState, useContext, useEffect } from 'react';
-import { jwtDecode } from 'jwt-decode';
+import { jwtDecode } from "jwt-decode";
 import { useNavigate } from 'react-router-dom';
 
 // Create the context
@@ -39,13 +39,13 @@ export const AuthProvider = ({ children }) => {
             const userData = localStorage.getItem('user')
               ? JSON.parse(localStorage.getItem('user'))
               : {
-                id: decodedToken.userId,
-                email: decodedToken.email,
-                role: decodedToken.role,
-                fullName: decodedToken.fullName || 'User',
-                address: decodedToken.address || 'no address provided',
-                profilePicture: decodedToken.profilePicture || 'no picture',
-              };
+                  id: decodedToken.userId,
+                  email: decodedToken.email,
+                  role: decodedToken.role,
+                  fullName: decodedToken.fullName || 'User',
+                  address: decodedToken.address || 'no address provided',
+                  profilePicture: decodedToken.profilePicture || 'no picture',
+                };
 
             setCurrentUser(userData);
           }
@@ -63,17 +63,40 @@ export const AuthProvider = ({ children }) => {
 
   // Login function - returns a promise to prevent multiple redirects
   const login = async (userData, token) => {
-    // Save data first
-    localStorage.setItem('token', token);
-    if (userData) {
-      localStorage.setItem('user', JSON.stringify(userData));
+    try {
+      // Try to store token first since it's smaller
+      localStorage.setItem('token', token);
+      
+      if (userData) {
+        // Only store essential user data to reduce size
+        const minimalUserData = {
+          id: userData.id,
+          email: userData.email,
+          role: userData.role,
+          fullName: userData.full_name || userData.fullName || 'User',
+        };
+        
+        try {
+          localStorage.setItem('user', JSON.stringify(minimalUserData));
+        } catch {
+          // If storing user data fails, clear and retry
+          localStorage.clear();
+          localStorage.setItem('token', token);
+          localStorage.setItem('user', JSON.stringify(minimalUserData));
+        }
+        
+        // Set the full user data in state
+        setCurrentUser(userData);
+      }
+  
+      // Return the role for external navigation if needed
+      return userData?.role;
+    } catch (error) {
+      console.error('Storage error during login:', error);
+      // If everything fails, at least try to set the current user in state
+      setCurrentUser(userData);
+      return userData?.role;
     }
-
-    // Update state
-    setCurrentUser(userData);
-
-    // Return the role for external navigation if needed
-    return userData?.role;
   };
 
   // Explicit navigation function separated from login

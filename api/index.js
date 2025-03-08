@@ -18,9 +18,9 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors({
-  origin: "http://localhost:5173", // Your frontend URL
+  origin: "http://localhost:5173",
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-User-Login",  "X-Current-Time"],
   credentials: true,
 }));
 
@@ -37,6 +37,7 @@ app.use("/", authRoutes);
 app.use("/admin", adminRoutes);  
 app.use("/categories", categoriesRoutes);
 app.use("/services", serviceRoutes);
+
 
 // Global error handling middleware
 app.use((err, req, res, next) => {

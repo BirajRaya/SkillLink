@@ -61,4 +61,20 @@ api.interceptors.response.use(
   }
 );
 
+// Add response interceptor to handle errors
+api.interceptors.response.use(
+  (response) => {
+      // Log the response for debugging
+      console.log('API Response:', {
+          status: response.status,
+          data: response.data,
+      });
+      return response;
+  },
+  (error) => {
+      console.error('API Response Error:', error.response || error);
+      return Promise.reject(error);
+  }
+);
+
 export default api;
