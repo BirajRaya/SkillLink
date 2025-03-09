@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
+const { addVendor, getAllVendors, updateVendorById, deleteVendorById } = require('../controllers/admin/vendors');
+
 // Save vendor availability
 router.post('/update-availability', async (req, res) => {
     try {
@@ -59,5 +61,16 @@ router.get('/getAvailability/:vendorId', async (req, res) => {
         res.status(500).json({ error: "Failed to fetch availability" });
     }
 });
+
+router.post('/add-vendor', addVendor);
+
+// Route to get all vendors
+router.get('/getAllVendors', getAllVendors);
+
+// Route to update a vendor by ID
+router.put('/update-vendor/:id', updateVendorById);
+
+// Route to delete a vendor by ID
+router.delete('/delete-vendor/:id', deleteVendorById);
 
 module.exports = router;

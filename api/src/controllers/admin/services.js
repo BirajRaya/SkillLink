@@ -49,16 +49,27 @@ const getAllServices = async (req, res) => {
 // Update service by ID
 const updateServiceById = async (req, res) => {
   const { id } = req.params;
-  const { name, description, category_id, price, location, image_url, status } = req.body;
+  const { name, description, category_id, vendor_id, price, location, image_url, status } = req.body;
 
-  if (!name || !category_id || !price) {
-    return res.status(400).json({ message: 'Required fields are missing' });
-  }
+
+  if (!name || !category_id || !price || !vendor_id) {
+        return res.status(400).json({ message: 'Required fields are missing' });
+      }
 
   let client;
   try {
     client = await pool.connect();
-    const result = await updateService(client, id, { name, description, category_id, price, location, image_url, status });
+    const result = await updateService(client, id, { 
+      name, 
+      description, 
+      category_id, 
+      vendor_id, // Pass vendor_id to the update function
+      price, 
+      location, 
+      image_url, 
+      status 
+    });
+
     if (result.rows.length === 0) {
       return res.status(404).json({ message: 'Service not found' });
     }
@@ -70,7 +81,6 @@ const updateServiceById = async (req, res) => {
     if (client) client.release();
   }
 };
-
 // Delete service by ID
 const deleteServiceById = async (req, res) => {
   const { id } = req.params;
@@ -95,6 +105,7 @@ const getAllActiveCategories = async (req, res) => {
   try {
     client = await pool.connect();
     const categories = await getActiveCategories(client);
+
     res.json(categories);
   } catch (error) {
     console.error('Error fetching categories:', error);
@@ -176,6 +187,36 @@ const getReviewsByServiceId = async (req, res) => {
   }
 };
 
+// Fetch services from backend for current user only
+const fetchServices = async (req, res) => {
+  let client;
+  try {
+    const { userId } = req.params;
+    if (!userId) {
+      return res.status(401).json({ message: 'Unauthorized' }); // Unauthorized if no userId
+    }
+    
+    client = await pool.connect(); 
+    console.log(userId);
+    
+    const result = await client.query(
+      'SELECT services.*, categories.category_name AS category_name  FROM services JOIN categories ON services.category_id = categories.id  WHERE vendor_id = $1',
+      [userId] // Filters services based on vendor ID and 'Active' status
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'No services found' }); // No services found for this user
+    }
+    
+    res.status(200).json(result.rows); // Return services in response
+  } catch (error) {
+    console.error('Error fetching user services:', error);
+    res.status(500).json({ message: 'Server error' }); // Internal server error
+  } finally {
+    if (client) client.release(); // Ensure the client connection is released after use
+  }
+};
+
 module.exports = {
   addService,
   getAllServices,
@@ -185,5 +226,6 @@ module.exports = {
   getAllActiveVendors,
   getServiceDetailsById,
   addReview,
-  getReviewsByServiceId
+  getReviewsByServiceId,
+  fetchServices
 };
