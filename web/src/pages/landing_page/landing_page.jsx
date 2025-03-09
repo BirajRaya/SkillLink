@@ -1,8 +1,35 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, Wrench, Bolt, Truck, Camera, Users, Star } from "lucide-react";
 
 const LandingPage = () => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+
+
+  // Handle search button click
+  const handleSearchClick = (e) => {
+    e.preventDefault();
+    if (searchTerm.trim()) {
+      setLoading(true);
+      navigate(`/search?q=${encodeURIComponent(searchTerm.trim())}`);
+    }
+  };
+
+  // Handle Enter key press
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (searchTerm.trim()) {
+        setLoading(true);
+        navigate(`/search?q=${encodeURIComponent(searchTerm.trim())}`);
+      }
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white flex flex-col">
       {/* Main Content */}
@@ -19,15 +46,30 @@ const LandingPage = () => {
             </p>
             
             {/* Search Bar */}
-            <div className="max-w-2xl mx-auto flex gap-4 mb-12">
-              <Input 
-                className="flex-grow" 
-                placeholder="Search for skilled workers..."
-              />
-              <Button className="flex items-center gap-2">
-                <Search className="h-4 w-4" />
-                Search
-              </Button>
+            <div className="max-w-2xl mx-auto mb-12 relative">
+              <form onSubmit={handleSearchClick} className="flex gap-4">
+                <Input 
+                  className="flex-grow" 
+                  placeholder="Search for skilled workers..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                />
+                <Button 
+                  type="submit"
+                  className="flex items-center gap-2"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                  ) : (
+                    <>
+                      <Search className="h-4 w-4" />
+                      Search
+                    </>
+                  )}
+                </Button>
+              </form>
             </div>
           </div>
 
@@ -53,8 +95,6 @@ const LandingPage = () => {
           </div>
         </div>
       </main>
-
-    
 
       {/* Services Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
@@ -87,8 +127,6 @@ const LandingPage = () => {
           Become a Vendor
         </Button>
       </section>
-
-    
     </div>
   );
 };
