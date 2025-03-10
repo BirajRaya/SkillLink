@@ -123,14 +123,14 @@ const getReviewsByServiceId = async (client, serviceId) => {
   return client.query(query, values);
 };
 
-const updateService = async (client, id, { name, description, category_id, price, location, image_url, status }) => {
+const updateService = async (client, id, { name, description, category_id, vendor_id, price, location, image_url, status }) => {
   const query = `
     UPDATE services
-    SET name = $1, description = $2, category_id = $3, price = $4, location = $5, image_url = $6, status = $7
-    WHERE id = $8
+    SET name = $1, description = $2, category_id = $3, vendor_id = $4, price = $5, location = $6, image_url = $7, status = $8
+    WHERE id = $9
     RETURNING id, name, description, category_id, vendor_id, price, location, image_url, status;
-  `;
-  const values = [name, description, category_id, price, location, image_url, status, id];
+ `;
+  const values = [name, description, category_id, vendor_id, price, location, image_url, status, id];
   return client.query(query, values);
 };
 
@@ -165,6 +165,87 @@ const getActiveVendors = async (client) => {
   }
 };
 
+// Create a new vendor
+const createVendor = async (client, vendorData) => {
+  const { full_name, email, password, phone_number, address, profile_picture, role, is_active } = vendorData;
+  const query = `
+    INSERT INTO users (full_name, email, password, phone_number, address, profile_picture, role, is_active)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    RETURNING *
+  `;
+  return await client.query(query, [full_name, email, password, phone_number, address, profile_picture, role, is_active]);
+};
+
+// Get all vendors
+const getVendors = async (client) => {
+  const query = `
+    SELECT * FROM users
+    WHERE role = 'vendor'
+    ORDER BY id DESC
+  `;
+  return await client.query(query);
+};
+
+// Update vendor
+const updateVendor = async (client, id, vendorData) => {
+  // Create dynamic query based on provided fields
+  let updateFields = [];
+  let values = [];
+  let valueIndex = 1;
+  
+  for (const [key, value] of Object.entries(vendorData)) {
+    if (value !== undefined) {
+      updateFields.push(`${key} = $${valueIndex}`);
+      values.push(value);
+      valueIndex++;
+    }
+  }
+  
+  values.push(id);
+  
+  const query = `
+    UPDATE users
+    SET ${updateFields.join(', ')}
+    WHERE id = $${valueIndex} AND role = 'vendor'
+    RETURNING *
+  `;
+  
+  return await client.query(query, values);
+};
+
+// Delete vendor
+const deleteVendor = async (client, id) => {
+  const query = `
+    DELETE FROM users
+    WHERE id = $1 AND role = 'vendor'
+    RETURNING id
+  `;
+  return await client.query(query, [id]);
+};
+
+const getVendorServices = async (client, vendorId) => {
+  const query = `SELECT 
+    s.id, 
+    s.name, 
+    s.description, 
+    c.category_name AS category_name, 
+    s.vendor_id,
+    s.category_id,
+    u.full_name AS vendor_name, 
+    s.price, 
+    s.location, 
+    s.status, 
+    s.image_url, 
+    s.created_at, 
+    s.updated_at
+FROM services s
+JOIN categories c ON s.category_id = c.id
+JOIN users u ON s.vendor_id = u.id
+WHERE s.vendor_id = $1;
+`;
+  return client.query(query, [vendorId]);
+};
+
 
 
 module.exports = {
@@ -180,5 +261,10 @@ module.exports = {
   getActiveVendors,
   getServiceDetails,
   createReview,
-  getReviewsByServiceId
+  getReviewsByServiceId,
+  createVendor,
+  getVendors,
+  updateVendor,
+  deleteVendor,
+  getVendorServices
 };

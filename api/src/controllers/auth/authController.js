@@ -249,9 +249,63 @@ const resendVerification = async (req, res) => {
   }
 };
 
+// auth.middleware.js
+const authenticate = (req, res, next) => {
+  try {
+    // If user is already authenticated (user object is attached to request)
+    if (req.user) {
+      return next();
+    }
+    
+    // Check for auth token in cookies or headers
+    const token = req.cookies.authToken || 
+                  (req.headers.authorization && req.headers.authorization.split(' ')[1]);
+                  
+    if (!token) {
+      // Instead of immediately returning 401, allow the request to proceed
+      // but set a flag that can be checked by routes requiring authentication
+      req.isAuthenticated = false;
+      return next();
+    }
+    
+    // Verify and decode token (implement your token verification logic here)
+    // For example using jsonwebtoken:
+    // const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    // req.user = decoded;
+    
+    // For now, assuming token verification happens elsewhere and req.user is set
+    req.isAuthenticated = true;
+    next();
+  } catch (error) {
+    console.error('Authentication error:', error);
+    // Don't send 401 immediately, set auth flag to false and continue
+    req.isAuthenticated = false;
+    next();
+  }
+};
+
+
+const authenticateJWT = (req, res, next) => {
+  const token = req.headers['authorization'];
+  
+  if (!token) return res.status(403).json({ message: 'Access denied' });
+
+  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+    if (err) return res.status(403).json({ message: 'Invalid or expired token' });
+
+    req.user = user; // Attach user info to the request
+    next();
+  });
+};
+
+
+
+
 module.exports = {
   signup,
   signin,
   verifyEmail,
-  resendVerification
+  resendVerification,
+  authenticate,
+  authenticateJWT
 };

@@ -118,6 +118,21 @@ const saveOTP = async (client, email, otp, expiresAt) => {
   );
 };
 
+const getServicesByVendorEmail = async (client, vendorEmail) => {
+  const result = await client.query(`
+    SELECT 
+      s.id, s.name, s.description, c.category_name AS category, 
+      u.email AS vendor_email, u.full_name AS vendor_name, 
+      s.price, s.location, s.image_url, s.status, s.created_at, s.updated_at
+    FROM services s
+    JOIN categories c ON s.category_id = c.id
+    JOIN users u ON s.vendor_id = u.id
+    WHERE u.email = $1
+    ORDER BY s.created_at DESC
+  `, [vendorEmail]);
+  return result.rows;
+};
+
 module.exports = {
   createTempUser,
   moveTempUserToMain,
@@ -126,5 +141,6 @@ module.exports = {
   checkOTP,
     updatePassword,
     deleteOTP,
-    saveOTP
+    saveOTP,
+    getServicesByVendorEmail
 };
