@@ -3,7 +3,7 @@ import axios from 'axios';
 // Create axios instance
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000',
-  timeout: 10000, // 10 seconds
+  timeout: 15000, // Increased timeout to 15 seconds
 });
 
 // Request interceptor for adding auth token
@@ -12,6 +12,13 @@ api.interceptors.request.use(
     const token = localStorage.getItem('token');
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
+      // Log outgoing requests in development mode
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`🚀 Request: ${config.method.toUpperCase()} ${config.url}`, {
+          hasToken: !!token,
+          tokenPreview: token ? `${token.substring(0, 10)}...` : 'none',
+        });
+      }
     }
     return config;
   },
@@ -22,58 +29,53 @@ api.interceptors.request.use(
 
 // Response interceptor for error handling
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Log successful responses in development mode
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`✅ Response: ${response.config.method.toUpperCase()} ${response.config.url}`, {
+        status: response.status,
+        statusText: response.statusText,
+      });
+    }
+    return response;
+  },
   (error) => {
+    // Log error responses in development mode
+    if (process.env.NODE_ENV === 'development') {
+      console.error(`❌ Error Response:`, {
+        url: error.config?.url,
+        method: error.config?.method?.toUpperCase(),
+        status: error.response?.status,
+        message: error.response?.data?.message || error.message,
+      });
+    }
+
     // Handle specific error scenarios
     if (error.response) {
-      // The request was made and the server responded with a status code
-      // that falls out of the range of 2xx
       switch (error.response.status) {
         case 401:
-          // Unauthorized - likely token expired or invalid
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          // Redirect to login page
-          window.location.href = '/login';
+          // Don't automatically redirect on 401 - let the component handle it
+          console.warn('API authorization error (401):', error.response.data?.message || 'Unauthorized');
           break;
         case 403:
-          // Forbidden - user doesn't have permission
-          console.error('Access denied');
+          console.error('Access denied (403):', error.response.data?.message || 'Forbidden');
           break;
         case 404:
-          console.error('Resource not found');
+          console.error('Resource not found (404):', error.response.data?.message || 'Not found');
           break;
         case 500:
-          console.error('Server error');
+          console.error('Server error (500):', error.response.data?.message || 'Internal Server Error');
           break;
         default:
-          console.error('An error occurred');
+          console.error(`Error (${error.response.status}):`, error.response.data?.message || 'An error occurred');
       }
     } else if (error.request) {
-      // The request was made but no response was received
-      console.error('No response received', error.request);
+      console.error('No response received:', error.request);
     } else {
-      // Something happened in setting up the request
-      console.error('Error setting up request', error.message);
+      console.error('Error setting up request:', error.message);
     }
 
     return Promise.reject(error);
-  }
-);
-
-// Add response interceptor to handle errors
-api.interceptors.response.use(
-  (response) => {
-      // Log the response for debugging
-      console.log('API Response:', {
-          status: response.status,
-          data: response.data,
-      });
-      return response;
-  },
-  (error) => {
-      console.error('API Response Error:', error.response || error);
-      return Promise.reject(error);
   }
 );
 
