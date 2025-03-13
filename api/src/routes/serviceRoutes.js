@@ -274,6 +274,27 @@ router.post('/:serviceId/reviews', authenticateJWT, async (req, res) => {
   }
 });
 
+
+router.get('/:serviceId/reviews/check', authenticateJWT, async (req, res) => {
+  const { serviceId } = req.params;
+  const userId = req.user.userId;
+  
+  try {
+    // Check if user has already reviewed this service
+    const existingReview = await pool.query(
+      'SELECT id FROM reviews WHERE service_id = $1 AND user_id = $2',
+      [serviceId, userId]
+    );
+    
+    res.status(200).json({
+      reviewed: existingReview.rows.length > 0
+    });
+  } catch (error) {
+    console.error('Error checking review:', error);
+    res.status(500).json({ message: 'An error occurred while checking your review' });
+  }
+});
+
 // Update a review - protected
 // FIX: Assume reviews table doesn't have an updated_at column
 router.put('/:serviceId/reviews/:reviewId', authenticateJWT, async (req, res) => {

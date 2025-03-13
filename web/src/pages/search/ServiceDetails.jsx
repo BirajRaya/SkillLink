@@ -32,6 +32,7 @@ const ServiceDetails = () => {
     const [error, setError] = useState(null);
     const [showBookingForm, setShowBookingForm] = useState(false);
     const [existingBooking, setExistingBooking] = useState(null);
+    const [userBookings, setUserBookings] = useState([]); // Added state for all user bookings
     const [bookingLoading, setBookingLoading] = useState(false);
     const [showBookingDetails, setShowBookingDetails] = useState(false); // Initially hidden
     const [showSuccessMessage, setShowSuccessMessage] = useState(false); // Success message visibility
@@ -126,6 +127,7 @@ const ServiceDetails = () => {
                     if (isAuthenticated && currentUser) {
                         setBookingLoading(true);
                         try {
+                            // First, check current booking
                             const bookingResponse = await api.get(`/bookings/check/${id}`);
                             
                             if (bookingResponse.data && bookingResponse.data.hasBooking) {
@@ -141,8 +143,15 @@ const ServiceDetails = () => {
                                 // No booking found - clear localStorage
                                 localStorage.removeItem(`booking_service_${id}`);
                             }
+                            
+                            // NEW CODE: Fetch all user's bookings for this service (for review eligibility)
+                            const userBookingsResponse = await api.get(`/bookings/user/${currentUser.id}/service/${id}`);
+                            if (userBookingsResponse.data && userBookingsResponse.data.bookings) {
+                                setUserBookings(userBookingsResponse.data.bookings);
+                                console.log("User bookings for this service:", userBookingsResponse.data.bookings);
+                            }
                         } catch (bookingError) {
-                            console.error('Error checking for existing booking:', bookingError);
+                            console.error('Error checking for bookings:', bookingError);
                         } finally {
                             setBookingLoading(false);
                         }
@@ -162,6 +171,20 @@ const ServiceDetails = () => {
             fetchServiceDetails();
         }
     }, [id, isAuthenticated, currentUser]);
+
+    // Update bookings data after a booking status change
+    const updateUserBookings = async () => {
+        if (!isAuthenticated || !currentUser || !id) return;
+        
+        try {
+            const response = await api.get(`/bookings/user/${currentUser.id}/service/${id}`);
+            if (response.data && response.data.bookings) {
+                setUserBookings(response.data.bookings);
+            }
+        } catch (error) {
+            console.error('Error updating user bookings:', error);
+        }
+    };
 
     // Refresh service data when reviews change
     const handleReviewUpdate = async () => {
@@ -193,8 +216,9 @@ const ServiceDetails = () => {
             setShowSuccessMessage(false);
         }, 5000);
         
-        // Refresh service availability after a booking is made
+        // Refresh service availability & update user bookings
         checkServiceAvailability();
+        updateUserBookings();
     };
 
     // Handle booking cancellation
@@ -219,8 +243,24 @@ const ServiceDetails = () => {
             setShowSuccessMessage(false);
         }, 5000);
         
-        // Refresh service availability after cancellation
+        // Refresh service availability & update user bookings
         checkServiceAvailability();
+        updateUserBookings();
+    };
+
+    // Handle booking completion (when status changes to completed)
+    const handleBookingStatusChange = (booking) => {
+        setExistingBooking(booking);
+        
+        // Update localStorage with new status
+        localStorage.setItem(`booking_service_${id}`, JSON.stringify({
+            booking,
+            timestamp: new Date().toISOString()
+        }));
+        
+        // Refresh service availability & update user bookings
+        checkServiceAvailability();
+        updateUserBookings();
     };
 
     // Handle toggle booking details visibility
@@ -270,6 +310,9 @@ const ServiceDetails = () => {
     // Determine if we should show booking button/details based on booking status
     const hasActiveBooking = existingBooking && existingBooking.status !== 'cancelled' && 
                              existingBooking.status !== 'rejected' && existingBooking.status !== 'completed';
+                             
+    // Check if user has any completed bookings (for review eligibility)
+    const hasCompletedBooking = userBookings.some(booking => booking.status === 'completed');
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -350,7 +393,7 @@ const ServiceDetails = () => {
                                         <p className="text-3xl font-bold text-blue-600">${service.price}</p>
                                     </div>
                                     
-                                    {/* Book Now / View Booking Button */}
+                                    {/* Book Now / View Booking / Review Button */}
                                     {bookingLoading || serviceAvailability.loading ? (
                                         <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent"></div>
                                     ) : hasActiveBooking ? (
@@ -365,6 +408,36 @@ const ServiceDetails = () => {
                                                 <ChevronDown className="ml-2 h-5 w-5" />
                                             }
                                         </Button>
+                                    ) : hasCompletedBooking ? (
+                                        <div className="flex gap-2">
+                                            <Button 
+                                                className="bg-yellow-500 hover:bg-yellow-600 text-lg py-4 px-8 flex items-center"
+                                                onClick={() => {
+                                                    // Scroll to reviews section
+                                                    document.getElementById('reviews-section').scrollIntoView({ 
+                                                        behavior: 'smooth' 
+                                                    });
+                                                }}
+                                            >
+                                                <Star className="mr-2 h-5 w-5" fill="white" />
+                                                Leave a Review
+                                            </Button>
+                                            {!serviceAvailability.isAvailable ? null : (
+                                                <Button 
+                                                    className="bg-blue-600 hover:bg-blue-700 text-lg py-4 px-8"
+                                                    onClick={() => {
+                                                        if (isAuthenticated) {
+                                                            setShowBookingForm(!showBookingForm);
+                                                        } else {
+                                                            navigate('/login', { state: { from: `/services/${id}` } });
+                                                        }
+                                                    }}
+                                                >
+                                                    <Calendar className="mr-2 h-5 w-5" />
+                                                    Book Again
+                                                </Button>
+                                            )}
+                                        </div>
                                     ) : !serviceAvailability.isAvailable ? (
                                         <Button 
                                             className="bg-gray-400 text-lg py-4 px-8 w-full md:w-auto cursor-not-allowed"
@@ -445,6 +518,7 @@ const ServiceDetails = () => {
                                 <BookingDetails 
                                     booking={existingBooking} 
                                     onCancelBooking={handleCancelBooking}
+                                    onStatusChange={handleBookingStatusChange}
                                 />
                             </div>
                         )}
@@ -459,12 +533,15 @@ const ServiceDetails = () => {
                             </div>
                         </div>
 
-                        {/* Reviews Section */}
-                        <UserServiceReviews 
-                            serviceId={id} 
-                            reviews={service.reviews} 
-                            onReviewUpdate={handleReviewUpdate} 
-                        />
+                        {/* Reviews Section - Modified to pass bookings data and add ID for scrolling */}
+                        <div id="reviews-section">
+                            <UserServiceReviews 
+                                serviceId={id} 
+                                reviews={service.reviews} 
+                                onReviewUpdate={handleReviewUpdate}
+                                bookings={userBookings} 
+                            />
+                        </div>
                     </div>
                 </div>
             </main>

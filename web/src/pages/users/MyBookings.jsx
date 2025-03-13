@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react';
+/* eslint-disable no-undef */
+/* eslint-disable react/prop-types */
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { 
@@ -13,15 +15,26 @@ import {
   ChevronRight,
   Ban,
   CheckSquare,
-  RefreshCw
+  RefreshCw,
+  Star,
+  MessageSquare,
+  AlertTriangle
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger
 } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "../../hooks/use-toast";
 import { useAuth } from "../../utils/AuthContext"; 
 import api from '@/lib/api';
@@ -29,7 +42,6 @@ import api from '@/lib/api';
 const MyBookings = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { currentUser } = useAuth();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -37,17 +49,22 @@ const MyBookings = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [activeTab, setActiveTab] = useState("all");
-  const itemsPerPage = 5;
+  const [reviewStatus, setReviewStatus] = useState({});
+  const [reviewForms, setReviewForms] = useState({});
+  const [disputeForms, setDisputeForms] = useState({});
+  const [reviewData, setReviewData] = useState({});
+  const [disputeData, setDisputeData] = useState({});
+  const [submittingReview, setSubmittingReview] = useState(null);
+  const [submittingDispute, setSubmittingDispute] = useState(null);
+  const reviewTextareaRefs = useRef({});
+  const disputeTextareaRefs = useRef({});
   
-  // Helper function to get current formatted timestamp
+  const itemsPerPage = 5;
   const getCurrentTimestamp = () => {
-    return '2025-03-13 01:23:56'; // Using the provided timestamp
+    return new Date().toISOString().replace('T', ' ').slice(0, 19);
   };
 
-  // Helper function to get current username
-  const getCurrentUsername = () => {
-    return 'sudeepbanjade21'; // Using the provided username
-  };
+
 
   useEffect(() => {
     fetchBookings();
@@ -58,7 +75,6 @@ const MyBookings = () => {
       setLoading(true);
       setError(null);
       
-      console.log(`[${getCurrentTimestamp()}] Fetching user bookings - page ${currentPage} - User: ${getCurrentUsername()}`);
       
       const response = await api.get('/bookings/user', {
         params: {
@@ -74,6 +90,9 @@ const MyBookings = () => {
         // Calculate total pages based on bookings length if total isn't provided
         const total = response.data.total || response.data.bookings.length;
         setTotalPages(Math.ceil(total / itemsPerPage));
+        
+        // Check for existing reviews for completed bookings
+        checkReviewStatus(response.data.bookings);
       } else {
         console.error('Unexpected response format:', response.data);
         setError('Invalid response format from server');
@@ -84,6 +103,317 @@ const MyBookings = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Check if user has already left a review for each completed booking
+  const checkReviewStatus = async (bookingsList) => {
+    try {
+      const completedBookings = bookingsList.filter(booking => 
+        booking.status?.toLowerCase() === 'completed'
+      );
+      
+      if (completedBookings.length === 0) return;
+      
+      let reviewStatusObj = {};
+      
+      for (const booking of completedBookings) {
+        if (!booking.service_id) continue;
+        
+        try {
+          // Fixed API endpoint path to match backend route
+          const response = await api.get(`/services/${booking.service_id}/reviews/check`);
+          
+          console.log(`Review check for booking ${booking.id}:`, response.data);
+          
+          // Check specifically for the 'reviewed' property
+          if (response.data && response.data.reviewed !== undefined) {
+            reviewStatusObj[booking.id] = response.data.reviewed;
+          } else {
+            reviewStatusObj[booking.id] = false;
+          }
+        } catch (error) {
+          console.error(`Error checking review for booking ${booking.id}:`, error);
+          reviewStatusObj[booking.id] = false;
+        }
+      }
+      
+      setReviewStatus(reviewStatusObj);
+      
+      // Debug to check what values are being set
+      console.log(`[${getCurrentTimestamp()}] Review status after check:`, reviewStatusObj);
+    } catch (error) {
+      console.error("Error checking review status:", error);
+    }
+  };
+  
+  // Handle showing the review form for a specific booking
+  const handleShowReviewForm = (bookingId) => {
+    // Initialize review data for this booking if not already done
+    if (!reviewData[bookingId]) {
+      setReviewData(prev => ({
+        ...prev,
+        [bookingId]: { rating: 5, comment: '' }
+      }));
+    }
+    
+    setReviewForms(prev => ({
+      ...prev,
+      [bookingId]: true
+    }));
+  };
+
+  // Handle closing the review form for a specific booking
+  const handleCloseReviewForm = (bookingId) => {
+    setReviewForms(prev => ({
+      ...prev,
+      [bookingId]: false
+    }));
+  };
+
+  // Handle showing the dispute form for a specific booking
+  const handleShowDisputeForm = (bookingId) => {
+    // Initialize dispute data for this booking if not already done
+    if (!disputeData[bookingId]) {
+      setDisputeData(prev => ({
+        ...prev,
+        [bookingId]: { reason: '', description: '', evidence: null }
+      }));
+    }
+    
+    setDisputeForms(prev => ({
+      ...prev,
+      [bookingId]: true
+    }));
+  };
+
+  // Handle closing the dispute form for a specific booking
+  const handleCloseDisputeForm = (bookingId) => {
+    setDisputeForms(prev => ({
+      ...prev,
+      [bookingId]: false
+    }));
+  };
+
+  // Helper function to preserve cursor position
+  const updateTextFieldWithCursor = (ref, value) => {
+    if (!ref.current) return;
+    const start = ref.current.selectionStart;
+    const end = ref.current.selectionEnd;
+    ref.current.value = value;
+    ref.current.setSelectionRange(start, end);
+  };
+
+  // Handle review comment change
+  const handleCommentChange = (bookingId, event) => {
+    const newValue = event.target.value;
+    const textareaRef = reviewTextareaRefs.current[bookingId];
+    
+    setReviewData(prev => ({
+      ...prev,
+      [bookingId]: {
+        ...prev[bookingId],
+        comment: newValue
+      }
+    }));
+
+    if (textareaRef) {
+      updateTextFieldWithCursor(textareaRef, newValue);
+    }
+  };
+
+  // Handle dispute description change
+  const handleDisputeDescriptionChange = (bookingId, event) => {
+    const newValue = event.target.value;
+    const textareaRef = disputeTextareaRefs.current[bookingId];
+    
+    setDisputeData(prev => ({
+      ...prev,
+      [bookingId]: {
+        ...prev[bookingId],
+        description: newValue
+      }
+    }));
+
+    if (textareaRef) {
+      updateTextFieldWithCursor(textareaRef, newValue);
+    }
+  };
+
+  // Handle dispute reason change
+  const handleDisputeReasonChange = (bookingId, reason) => {
+    setDisputeData(prev => ({
+      ...prev,
+      [bookingId]: {
+        ...prev[bookingId],
+        reason
+      }
+    }));
+  };
+
+  // Handle dispute evidence file upload
+  const handleDisputeFileChange = (bookingId, event) => {
+    if (event.target.files && event.target.files[0]) {
+      setDisputeData(prev => ({
+        ...prev,
+        [bookingId]: {
+          ...prev[bookingId],
+          evidence: event.target.files[0]
+        }
+      }));
+    }
+  };
+
+  // Handle submitting a review
+  const handleSubmitReview = async (booking) => {
+    if (!booking || !booking.id || !booking.service_id) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Missing booking information. Unable to submit review."
+      });
+      return;
+    }
+    
+    setSubmittingReview(booking.id);
+    
+    try {
+      const reviewPayload = {
+        service_id: booking.service_id,
+        booking_id: booking.id,
+        rating: reviewData[booking.id]?.rating || 5,
+        comment: reviewData[booking.id]?.comment?.trim() || ''
+      };
+      
+      console.log(`[${getCurrentTimestamp()}] Submitting review for booking ${booking.id}:`, reviewPayload);
+      
+      const response = await api.post(`/services/${booking.service_id}/reviews`, reviewPayload);
+      
+      if (response.data && response.data.status === 'success') {
+        toast({
+          title: "Review Submitted",
+          description: "Thank you for your feedback!"
+        });
+        
+        // Update review status to show the booking has been reviewed
+        setReviewStatus(prev => ({
+          ...prev,
+          [booking.id]: true
+        }));
+        
+        // Close the review form
+        handleCloseReviewForm(booking.id);
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to submit your review. Please try again."
+        });
+      }
+    } catch (error) {
+      console.error(`[${getCurrentTimestamp()}] Error submitting review:`, error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.response?.data?.message || "Failed to submit your review"
+      });
+    } finally {
+      setSubmittingReview(null);
+    }
+  };
+
+  // Handle submitting a dispute
+  const handleSubmitDispute = async (booking) => {
+    if (!booking || !booking.id) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Missing booking information. Unable to submit dispute."
+      });
+      return;
+    }
+    
+    if (!disputeData[booking.id]?.reason) {
+      toast({
+        variant: "destructive",
+        title: "Required Field",
+        description: "Please select a reason for your dispute."
+      });
+      return;
+    }
+    
+    if (!disputeData[booking.id]?.description || disputeData[booking.id].description.trim() === '') {
+      toast({
+        variant: "destructive",
+        title: "Required Field",
+        description: "Please provide a description of your dispute."
+      });
+      return;
+    }
+    
+    setSubmittingDispute(booking.id);
+    
+    try {
+      // Create form data for file upload
+      const formData = new FormData();
+      formData.append('booking_id', booking.id);
+      formData.append('reason', disputeData[booking.id].reason);
+      formData.append('description', disputeData[booking.id].description);
+      
+      if (disputeData[booking.id].evidence) {
+        formData.append('evidence', disputeData[booking.id].evidence);
+      }
+      
+      console.log(`[${getCurrentTimestamp()}] Submitting dispute for booking ${booking.id}`);
+      
+      const response = await api.post('/disputes/create', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      
+      if (response.data && response.data.status === 'success') {
+        toast({
+          title: "Dispute Submitted",
+          description: "Your dispute has been submitted and will be reviewed by our team."
+        });
+        
+        // Close the dispute form
+        handleCloseDisputeForm(booking.id);
+        
+        // Refresh bookings to show updated status
+        fetchBookings();
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to submit your dispute. Please try again."
+        });
+      }
+    } catch (error) {
+      console.error(`[${getCurrentTimestamp()}] Error submitting dispute:`, error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.response?.data?.message || "Failed to submit your dispute"
+      });
+    } finally {
+      setSubmittingDispute(null);
+    }
+  };
+
+  // Handle sending a message to vendor
+  const handleMessageVendor = (booking) => {
+    if (!booking.vendor_id) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Vendor information is missing. Unable to send message."
+      });
+      return;
+    }
+    
+    // Navigate to messaging page with vendor ID
+    navigate(`/messages/vendor/${booking.vendor_id}?booking=${booking.id}`);
   };
 
   const cancelBooking = async (bookingId) => {
@@ -108,7 +438,6 @@ const MyBookings = () => {
   // This function handles clicking the "Book Now" button
   const handleBookNow = (booking) => {
     if (booking.service_id) {
-      console.log(`[${getCurrentTimestamp()}] User ${getCurrentUsername()} booking service ID: ${booking.service_id}`);
       
       // Navigate to service page with query parameter to open booking form
       navigate(`/services/${booking.service_id}?action=book`);
@@ -177,6 +506,13 @@ const MyBookings = () => {
             <span>Completed</span>
           </div>
         );
+      case 'disputed':
+        return (
+          <div className="flex items-center gap-1 text-orange-600 bg-orange-50 px-3 py-1 rounded-full text-sm">
+            <AlertTriangle className="h-4 w-4" />
+            <span>Disputed</span>
+          </div>
+        );
       default:
         return (
           <div className="flex items-center gap-1 text-yellow-600 bg-yellow-50 px-3 py-1 rounded-full text-sm">
@@ -207,12 +543,44 @@ const MyBookings = () => {
   // Add debug logging to help diagnose the issue
   console.log(`[${getCurrentTimestamp()}] Rendering MyBookings component with ${bookings.length} bookings`);
 
+  // Star Rating Component
+  const StarRating = ({ rating, onChange, disabled = false }) => {
+    return (
+      <div className="flex items-center">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <button
+            key={star}
+            type="button"
+            disabled={disabled}
+            onClick={() => onChange(star)}
+            className={`p-1 ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
+          >
+            <Star
+              fill={star <= rating ? "#FFB800" : "none"}
+              stroke={star <= rating ? "#FFB800" : "#94a3b8"}
+              className={`h-5 w-5 ${
+                star <= rating 
+                  ? "text-yellow-400" 
+                  : "text-slate-400"
+              }`}
+            />
+          </button>
+        ))}
+        <span className="ml-1 text-sm text-gray-700">({rating}/5)</span>
+      </div>
+    );
+  };
+
   const BookingCard = ({ booking }) => {
     // Debug the status to ensure it's working correctly
     const status = booking.status?.toLowerCase();
     const isCompletedRejectedCancelled = ['completed', 'rejected', 'cancelled'].includes(status);
+    const isCompleted = status === 'completed';
+    const hasReview = reviewStatus[booking.id];
+    const showReviewForm = reviewForms[booking.id];
+    const showDisputeForm = disputeForms[booking.id];
     
-    console.log(`[${getCurrentTimestamp()}] Booking ${booking.id} status: ${status}, Should show Book Now: ${isCompletedRejectedCancelled}`);
+    console.log(`[${getCurrentTimestamp()}] Booking ${booking.id} status: ${status}, Has Review: ${hasReview}, Show Form: ${showReviewForm}`);
     
     return (
       <div className="bg-white border rounded-lg shadow-sm p-4 mb-4">
@@ -237,49 +605,227 @@ const MyBookings = () => {
           </div>
         </div>
         
-        <div className="flex justify-between items-center">
-          <span className="font-semibold text-blue-700">${booking.amount}</span>
-          <div className="space-x-2">
-            {/* Changed condition to check exact lowercase status values */}
-            {['completed', 'rejected', 'cancelled'].includes(booking.status?.toLowerCase()) ? (
-              <Button
-                variant="default"
-                size="sm"
-                className="gap-1"
-                onClick={() => handleBookNow(booking)}
-              >
-                <RefreshCw className="h-4 w-4" />
-                Book Now
-              </Button>
-            ) : (
+        {/* Review Form - Show for completed bookings that don't have a review yet */}
+        {isCompleted && !hasReview && showReviewForm && (
+          <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-100">
+            <h4 className="font-medium text-blue-800 mb-2">Leave a Review</h4>
+            <div className="mb-3">
+              <label className="block text-sm font-medium mb-1">Your Rating:</label>
+              <StarRating 
+                rating={reviewData[booking.id]?.rating || 5} 
+                onChange={(value) => handleRatingChange(booking.id, value)}
+                disabled={submittingReview === booking.id}
+              />
+            </div>
+            <div className="mb-3">
+              <label className="block text-sm font-medium mb-1">Your Feedback:</label>
+              <Textarea
+                ref={el => reviewTextareaRefs.current[booking.id] = el}
+                value={reviewData[booking.id]?.comment || ''}
+                onChange={(e) => handleCommentChange(booking.id, e)}
+                placeholder="Share your experience with this service..."
+                rows={3}
+                disabled={submittingReview === booking.id}
+                className="w-full p-2 border border-blue-200 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => navigate(`/bookings/view/${booking.id}`)}
-              >
-                View Details
-              </Button>
-            )}
-            
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate(`/services/${booking.service_id}`)}
-            >
-              View Service
-            </Button>
-            
-            {booking.status?.toLowerCase() === 'pending' && (
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => cancelBooking(booking.id)}
+                onClick={() => handleCloseReviewForm(booking.id)}
+                disabled={submittingReview === booking.id}
               >
                 Cancel
               </Button>
-            )}
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => handleSubmitReview(booking)}
+                disabled={submittingReview === booking.id}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {submittingReview === booking.id ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    <Star className="h-4 w-4 mr-1" />
+                    Submit Review
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
+        
+        {/* Dispute Form - Show for completed bookings when dispute form is open */}
+        {isCompleted && showDisputeForm && (
+          <div className="mb-4 p-4 bg-red-50 rounded-lg border border-red-100">
+            <h4 className="font-medium text-red-800 mb-2">File a Dispute</h4>
+            <div className="mb-3">
+              <label className="block text-sm font-medium mb-1">Reason for Dispute:</label>
+              <Select 
+                value={disputeData[booking.id]?.reason || ''} 
+                onValueChange={(value) => handleDisputeReasonChange(booking.id, value)}
+                disabled={submittingDispute === booking.id}
+              >
+                <SelectTrigger className="w-full border border-red-200">
+                  <SelectValue placeholder="Select a reason" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="service_not_provided">Service Not Provided</SelectItem>
+                  <SelectItem value="service_quality">Poor Service Quality</SelectItem>
+                  <SelectItem value="inappropriate_behavior">Inappropriate Behavior</SelectItem>
+                  <SelectItem value="overcharge">Overcharge</SelectItem>
+                  <SelectItem value="damaged_property">Damaged Property</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="mb-3">
+              <label className="block text-sm font-medium mb-1">Description:</label>
+              <Textarea
+                ref={el => disputeTextareaRefs.current[booking.id] = el}
+                value={disputeData[booking.id]?.description || ''}
+                onChange={(e) => handleDisputeDescriptionChange(booking.id, e)}
+                placeholder="Please provide details about your dispute..."
+                rows={4}
+                disabled={submittingDispute === booking.id}
+                className="w-full p-2 border border-red-200 rounded-md focus:ring-red-500 focus:border-red-500"
+              />
+            </div>
+            <div className="mb-3">
+              <label className="block text-sm font-medium mb-1">Evidence (optional):</label>
+              <Input
+                type="file"
+                disabled={submittingDispute === booking.id}
+                onChange={(e) => handleDisputeFileChange(booking.id, e)}
+                className="border border-red-200"
+              />
+              <p className="text-xs text-gray-500 mt-1">Upload any photos or documents that support your dispute (max 5MB).</p>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleCloseDisputeForm(booking.id)}
+                disabled={submittingDispute === booking.id}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => handleSubmitDispute(booking)}
+                disabled={submittingDispute === booking.id}
+              >
+                {submittingDispute === booking.id ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    <AlertTriangle className="h-4 w-4 mr-1" />
+                    Submit Dispute
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
+        
+        <div className="flex justify-between items-center">
+  <span className="font-semibold text-blue-700">${booking.amount}</span>
+  <div className="flex flex-wrap gap-2 justify-end">
+    {/* For completed bookings - show additional options */}
+    {isCompleted && (
+      <>
+        {/* Add Review button if no review exists */}
+        {!hasReview && !showReviewForm && (
+          <Button
+            variant="default"
+            size="sm"
+            className="gap-1 bg-yellow-500 hover:bg-yellow-600"
+            onClick={() => handleShowReviewForm(booking.id)}
+          >
+            <Star className="h-4 w-4" />
+            Add Review
+          </Button>
+        )}
+        
+        {/* Show "Reviewed" text if review exists */}
+        {hasReview && (
+          <span className="text-green-600 text-sm flex items-center">
+            <CheckCircle2 className="h-4 w-4 mr-1" />
+            Reviewed
+          </span>
+        )}
+        
+        {/* Message to Vendor button */}
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1 border-blue-300 text-blue-700 hover:bg-blue-50"
+          onClick={() => handleMessageVendor(booking)}
+        >
+          <MessageSquare className="h-4 w-4" />
+          Message Vendor
+        </Button>
+        
+        {/* Dispute button */}
+        {!showDisputeForm && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1 border-red-300 text-red-700 hover:bg-red-50"
+            onClick={() => handleShowDisputeForm(booking.id)}
+          >
+            <AlertTriangle className="h-4 w-4" />
+            Dispute
+          </Button>
+        )}
+      </>
+    )}
+    
+    {/* For completed, cancelled, or rejected bookings - offer to book again */}
+    {isCompletedRejectedCancelled && (
+      <Button
+        variant="default"
+        size="sm"
+        className="gap-1"
+        onClick={() => handleBookNow(booking)}
+      >
+        <RefreshCw className="h-4 w-4" />
+        Book Again
+      </Button>
+    )}
+    
+    {/* View Service button */}
+    <Button
+      variant="default"
+      size="sm"
+      className="bg-green-600 hover:bg-green-700 gap-1"
+      onClick={() => navigate(`/services/${booking.service_id}`)}
+    >
+      View Service
+    </Button>
+    
+    {/* Only show Cancel button for pending bookings */}
+    {status === 'pending' && (
+      <Button
+        variant="destructive"
+        size="sm"
+        onClick={() => cancelBooking(booking.id)}
+      >
+        Cancel
+      </Button>
+    )}
+  </div>
+</div>
       </div>
     );
   };
@@ -383,8 +929,8 @@ const MyBookings = () => {
         ))}
       </Tabs>
       
-            {/* Pagination controls */}
-            {totalPages > 1 && (
+      {/* Pagination controls */}
+      {totalPages > 1 && (
         <div className="flex justify-center items-center mt-8 gap-2">
           <Button
             variant="outline"

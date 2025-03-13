@@ -1,14 +1,50 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Wrench, Bolt, Truck, Camera, Users, Star } from "lucide-react";
+import { Search, Wrench, Bolt, Calendar, SprayCan, Hammer, Briefcase, Users, Star } from "lucide-react";
 
 const LandingPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
+  const [recommendations, setRecommendations] = useState([]);
+  const [showRecommendations, setShowRecommendations] = useState(false);
   const navigate = useNavigate();
 
+
+  const categories = [
+    { id: 1, name: "Plumbing Services", description: "Professional plumbing repair and installation", icon: "wrench" },
+    { id: 2, name: "Home Cleaning Services", description: "House cleaning and organization", icon: "spray-can" },
+    { id: 3, name: "Event Planning Services", description: "Event coordination and management", icon: "calendar" },
+    { id: 4, name: "Electrical Services", description: "Electrical installation and repair", icon: "bolt" },
+    { id: 5, name: "Carpentry Services", description: "Woodworking and furniture repair", icon: "hammer" }
+  ];
+
+  // Update recommendations when search term changes
+  useEffect(() => {
+    if (searchTerm.trim().length > 1) {
+      const term = searchTerm.toLowerCase().trim();
+      
+      // Filter and sort categories based on search term
+      const filtered = categories
+        .filter(category => category.name.toLowerCase().includes(term))
+        .sort((a, b) => {
+          // Prioritize categories that start with the search term
+          const aStartsWith = a.name.toLowerCase().startsWith(term);
+          const bStartsWith = b.name.toLowerCase().startsWith(term);
+          
+          if (aStartsWith && !bStartsWith) return -1;
+          if (!aStartsWith && bStartsWith) return 1;
+          return a.name.localeCompare(b.name);
+        });
+      
+      setRecommendations(filtered);
+      setShowRecommendations(filtered.length > 0);
+    } else {
+      setRecommendations([]);
+      setShowRecommendations(false);
+    }
+  }, [searchTerm]);
 
   // Handle search button click
   const handleSearchClick = (e) => {
@@ -30,6 +66,45 @@ const LandingPage = () => {
     }
   };
 
+  // Handle recommendation click
+  const handleRecommendationClick = (category) => {
+    setSearchTerm(category.name);
+    setShowRecommendations(false);
+    navigate(`/search?category=${category.id}&q=${encodeURIComponent(category.name)}`);
+  };
+
+  // Render the appropriate icon based on the category icon name
+  const renderCategoryIcon = (iconName) => {
+    switch (iconName) {
+      case 'wrench':
+        return <Wrench className="h-4 w-4" />;
+      case 'bolt':
+        return <Bolt className="h-4 w-4" />;
+      case 'calendar':
+        return <Calendar className="h-4 w-4" />;
+      case 'spray-can':
+        return <SprayCan className="h-4 w-4" />;
+      case 'hammer':
+        return <Hammer className="h-4 w-4" />;
+      default:
+        return <Briefcase className="h-4 w-4" />;
+    }
+  };
+
+  // Handle click outside recommendations to close them
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!e.target.closest('.search-container')) {
+        setShowRecommendations(false);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, []);
+
   return (
     <div className="min-h-screen bg-white flex flex-col">
       {/* Main Content */}
@@ -45,16 +120,55 @@ const LandingPage = () => {
               Connect with verified professionals for your project needs
             </p>
             
-            {/* Search Bar */}
-            <div className="max-w-2xl mx-auto mb-12 relative">
+            {/* Search Bar with Recommendations */}
+            <div className="max-w-2xl mx-auto mb-12 relative search-container">
               <form onSubmit={handleSearchClick} className="flex gap-4">
-                <Input 
-                  className="flex-grow" 
-                  placeholder="Search for skilled workers..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                />
+                <div className="relative flex-grow">
+                  <Input 
+                    className="w-full" 
+                    placeholder="Search for skilled workers..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (recommendations.length > 0) {
+                        setShowRecommendations(true);
+                      }
+                    }}
+                  />
+                  
+                  {/* Recommendations dropdown */}
+                  {showRecommendations && (
+                    <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
+                      <ul>
+                        {recommendations.map((category) => (
+                          <li 
+                            key={category.id}
+                            className="px-4 py-2 hover:bg-blue-50 cursor-pointer flex items-center"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRecommendationClick(category);
+                            }}
+                          >
+                            <span className="mr-2 text-blue-600">
+                              {renderCategoryIcon(category.icon)}
+                            </span>
+                            <div>
+                              <div className="font-medium">{category.name}</div>
+                              {category.description && (
+                                <div className="text-xs text-gray-500 truncate">
+                                  {category.description}
+                                </div>
+                              )}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+                
                 <Button 
                   type="submit"
                   className="flex items-center gap-2"
@@ -101,21 +215,36 @@ const LandingPage = () => {
         <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">
           Popular Services
         </h2>
-        <div className="grid md:grid-cols-4 gap-8">
-          {[
-            { icon: <Wrench className="h-12 w-12 text-blue-600 mx-auto" />, title: "Plumbing" },
-            { icon: <Bolt className="h-12 w-12 text-blue-600 mx-auto" />, title: "Electrician" },
-            { icon: <Truck className="h-12 w-12 text-blue-600 mx-auto" />, title: "Driver" },
-            { icon: <Camera className="h-12 w-12 text-blue-600 mx-auto" />, title: "Cameraperson" },
-          ].map((service, index) => (
-            <div
-              key={index}
-              className="text-center p-6 rounded-lg border hover:shadow-lg transition-shadow"
-            >
-              {service.icon}
-              <h3 className="text-xl font-semibold mt-4">{service.title}</h3>
-            </div>
-          ))}
+        <div className="grid md:grid-cols-5 gap-6">
+          <div className="text-center p-6 rounded-lg border hover:shadow-lg transition-shadow cursor-pointer"
+               onClick={() => navigate('/search?category=1&q=Plumbing Services')}>
+            <Wrench className="h-12 w-12 text-blue-600 mx-auto" />
+            <h3 className="text-xl font-semibold mt-4">Plumbing</h3>
+          </div>
+          
+          <div className="text-center p-6 rounded-lg border hover:shadow-lg transition-shadow cursor-pointer"
+               onClick={() => navigate('/search?category=4&q=Electrical Services')}>
+            <Bolt className="h-12 w-12 text-blue-600 mx-auto" />
+            <h3 className="text-xl font-semibold mt-4">Electrical</h3>
+          </div>
+          
+          <div className="text-center p-6 rounded-lg border hover:shadow-lg transition-shadow cursor-pointer"
+               onClick={() => navigate('/search?category=2&q=Home Cleaning Services')}>
+            <SprayCan className="h-12 w-12 text-blue-600 mx-auto" />
+            <h3 className="text-xl font-semibold mt-4">Cleaning</h3>
+          </div>
+          
+          <div className="text-center p-6 rounded-lg border hover:shadow-lg transition-shadow cursor-pointer"
+               onClick={() => navigate('/search?category=3&q=Event Planning Services')}>
+            <Calendar className="h-12 w-12 text-blue-600 mx-auto" />
+            <h3 className="text-xl font-semibold mt-4">Events</h3>
+          </div>
+          
+          <div className="text-center p-6 rounded-lg border hover:shadow-lg transition-shadow cursor-pointer"
+               onClick={() => navigate('/search?category=5&q=Carpentry Services')}>
+            <Hammer className="h-12 w-12 text-blue-600 mx-auto" />
+            <h3 className="text-xl font-semibold mt-4">Carpentry</h3>
+          </div>
         </div>
       </section>
 

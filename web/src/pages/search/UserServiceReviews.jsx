@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+/* eslint-disable react/prop-types */
+import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { 
     Star, 
@@ -8,13 +9,17 @@ import {
     Trash,
     AlertCircle,
     AlertTriangle,
-    LogIn
+    LogIn,
+    Lock
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import api from '@/lib/api';
 import { useAuth } from '@/utils/AuthContext';
 
-const UserServiceReviews = ({ serviceId, reviews: initialReviews, onReviewUpdate }) => {
+import MyBookings from '../users/MyBookings';
+
+// Added bookings prop to receive booking information
+const UserServiceReviews = ({ serviceId, reviews: initialReviews, onReviewUpdate, bookings }) => {
     const navigate = useNavigate();
     const { toast } = useToast();
     const { currentUser, isAuthenticated } = useAuth();
@@ -29,16 +34,9 @@ const UserServiceReviews = ({ serviceId, reviews: initialReviews, onReviewUpdate
     const [isEditing, setIsEditing] = useState(false);
     const [reviewMessage, setReviewMessage] = useState({ type: '', text: '' });
     const [reviews, setReviews] = useState(initialReviews || []);
+    // Add booking state
+    const [hasCompletedBooking, setHasCompletedBooking] = useState(false);
     
-    // Safe localStorage functions with error handling
-    const safelyGetItem = (key) => {
-        try {
-            return localStorage.getItem(key);
-        } catch (e) {
-            console.warn('Error accessing localStorage:', e);
-            return null;
-        }
-    };
 
     const safelySetItem = (key, value) => {
         try {
@@ -78,6 +76,30 @@ const UserServiceReviews = ({ serviceId, reviews: initialReviews, onReviewUpdate
             token: localStorage.getItem('token')
         });
     }, [isAuthenticated, currentUser]);
+    
+    // Check if user has completed bookings
+    useEffect(() => {
+        if (isAuthenticated && currentUser && bookings && bookings.length > 0) {
+            // Check for completed bookings
+            const completedBooking = bookings.some(booking => 
+                booking.status === 'completed' && 
+                booking.user_id === currentUser.id &&
+                booking.service_id === serviceId
+            );
+            
+            console.log("User has completed booking:", completedBooking);
+            setHasCompletedBooking(completedBooking);
+            
+            // If user has completed a booking and doesn't have a review yet,
+            // automatically show the review form
+            if (completedBooking && !userReview && !showReviewForm) {
+                console.log("Auto-showing review form for completed booking");
+                setShowReviewForm(true);
+            }
+        } else {
+            setHasCompletedBooking(false);
+        }
+    }, [bookings, isAuthenticated, currentUser, serviceId, userReview, showReviewForm]);
     
     // Check if user has already reviewed this service
     useEffect(() => {
@@ -138,6 +160,16 @@ const UserServiceReviews = ({ serviceId, reviews: initialReviews, onReviewUpdate
             return;
         }
         
+        // Check if user has completed a booking
+        if (!hasCompletedBooking) {
+            toast({
+                title: "Action not allowed",
+                description: "You can only leave a review after completing a booking for this service.",
+                variant: "destructive",
+            });
+            return;
+        }
+        
         clearMessages();
         setIsEditing(false);
         setShowReviewForm(true);
@@ -182,6 +214,15 @@ const UserServiceReviews = ({ serviceId, reviews: initialReviews, onReviewUpdate
 
     const handleSubmitReview = async (e) => {
         e.preventDefault();
+        
+        // Check again if user has completed a booking
+        if (!hasCompletedBooking && !isEditing) {
+            setReviewMessage({
+                type: 'error',
+                text: 'You must complete a booking before leaving a review.'
+            });
+            return;
+        }
         
         // Debug auth state before submission
         console.log("Submitting review - Auth state:", {
@@ -470,36 +511,33 @@ const UserServiceReviews = ({ serviceId, reviews: initialReviews, onReviewUpdate
                     Reviews {reviews.length ? `(${reviews.length})` : ''}
                 </h2>
                 
-                {/* Review Action Buttons */}
-                {!showReviewForm && (
-                    isAuthenticated ? (
-                        userReview ? (
-                            null
-                        ) : (
-                            <Button 
-                                onClick={handleNewReview}
-                                className="bg-blue-600 hover:bg-blue-700"
-                            >
-                                Write a Review
-                            </Button>
-                        )
-                    ) : (
-                        <Button 
-                            onClick={handleNonLoggedInReview}
-                            className="flex items-center bg-blue-600 hover:bg-blue-700"
-                        >
-                            <LogIn className="h-4 w-4 mr-2" />
-                            Login to Review
-                        </Button>
-                    )
+                {/* Only show login button for non-authenticated users */}
+                {!isAuthenticated && !showReviewForm && (
+                    <Button 
+                        onClick={handleNonLoggedInReview}
+                        className="flex items-center bg-blue-600 hover:bg-blue-700"
+                    >
+                        <LogIn className="h-4 w-4 mr-2" />
+                        Login to Review
+                    </Button>
                 )}
             </div>
+            
+            {/* Notification for logged-in users to direct them to My Bookings tab */}
+            {isAuthenticated && !userReview && !showReviewForm && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 flex items-center">
+                    <AlertCircle className="h-5 w-5 text-blue-500 mr-2" />
+                    <p className="text-blue-700">
+                        You can add a review for this service from the <a href="/bookings" className="underline font-medium">My Bookings</a> tab after your booking is completed.
+                    </p>
+                </div>
+            )}
 
             {/* Auth Debug Info - Empty component to prevent errors */}
             <AuthDebugInfo />
 
-            {/* Review Form - Only show for authenticated users */}
-            {isAuthenticated && showReviewForm && (
+            {/* Review Form - Only show for authenticated users with completed bookings */}
+            {isAuthenticated && showReviewForm && (hasCompletedBooking || isEditing) && (
                 <div className="bg-gray-50 p-6 rounded-lg border mb-8">
                     <form onSubmit={handleSubmitReview}>
                         <h3 className="text-xl font-medium mb-4">
@@ -680,12 +718,13 @@ const UserServiceReviews = ({ serviceId, reviews: initialReviews, onReviewUpdate
                 <div className="bg-gray-50 p-6 rounded-lg text-center">
                     <p className="text-gray-500">There are no reviews yet.</p>
                     {isAuthenticated && !userReview && !showReviewForm && (
-                        <Button
-                            onClick={handleNewReview}
-                            className="mt-4 bg-blue-600 hover:bg-blue-700"
-                        >
-                            Be the first to write a review
-                        </Button>
+                        <div className="mt-4 text-center">
+                            <p className="text-blue-700 mb-2">
+                                <AlertCircle className="h-5 w-5 inline-block mr-1" />
+                                Reviews can be submitted from the <Link to="/bookings" className="underline font-medium">My Bookings</Link>
+                                tab
+                            </p>
+                        </div>
                     )}
                     {!isAuthenticated && (
                         <Button
