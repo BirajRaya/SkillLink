@@ -11,7 +11,7 @@ const adminRoutes = require("./src/routes/adminRoutes");
 const categoriesRoutes = require('./src/routes/categoriesRoutes');
 const serviceRoutes = require('./src/routes/serviceRoutes');
 const vendorRoutes = require('./src/routes/vendorRoutes');
-
+const bookingRoutes = require('./src/routes/bookingRoutes');
 
 // Create the Express App
 const app = express();
@@ -25,7 +25,6 @@ app.use(cors({
   credentials: true,
 }));
 
-
 // Body parsing middleware
 app.use(express.json({ limit: "10mb" })); 
 app.use(express.urlencoded({ extended: true }));
@@ -38,8 +37,8 @@ app.use("/", authRoutes);
 app.use("/admin", adminRoutes);  
 app.use("/categories", categoriesRoutes);
 app.use("/services", serviceRoutes);
-app.use("/vendors" , vendorRoutes);
-
+app.use("/vendors", vendorRoutes);
+app.use("/bookings", bookingRoutes);
 
 // Global error handling middleware
 app.use((err, req, res, next) => {

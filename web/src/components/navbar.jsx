@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { Briefcase, User, LogOut, Settings, Mail, Phone, Lock, Save, X, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Briefcase, User, LogOut, Settings, Mail, Phone, Lock, Save, X, Eye, EyeOff, Loader2, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,6 +26,7 @@ import { Home } from "lucide-react";
 
 const Navbar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [activePage, setActivePage] = useState("");
   const { currentUser, isAuthenticated, logout, setCurrentUser } = useAuth();
   const [showProfileDialog, setShowProfileDialog] = useState(false);
@@ -153,8 +154,12 @@ const Navbar = () => {
           <div className="flex justify-between h-16 items-center">
             {/* Logo */}
             <div className="flex items-center">
-              <Briefcase className="h-8 w-8 text-blue-600" />
-              <span className="ml-2 text-2xl font-bold text-blue-600">SkillLink</span>
+              <Link to="/">
+                <div className="flex items-center">
+                  <Briefcase className="h-8 w-8 text-blue-600" />
+                  <span className="ml-2 text-2xl font-bold text-blue-600">SkillLink</span>
+                </div>
+              </Link>
             </div>
 
             {/* Navigation Links */}
@@ -174,8 +179,8 @@ const Navbar = () => {
               ))}
             </div>
 
-            {/* Buttons or User Profile */}
-            <div className="flex items-center space-x-4">
+                        {/* Buttons or User Profile */}
+                        <div className="flex items-center space-x-4">
               {isAuthenticated ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -197,6 +202,13 @@ const Navbar = () => {
                     >
                       <User className="mr-2 h-4 w-4" />
                       <span>Update Profile</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      className="flex items-center"
+                      onClick={() => navigate('/bookings')}
+                    >
+                      <Calendar className="mr-2 h-4 w-4" />
+                      <span>My Bookings</span>
                     </DropdownMenuItem>
                     <DropdownMenuItem className="flex items-center">
                       <Settings className="mr-2 h-4 w-4" />

@@ -1,35 +1,152 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { 
     ArrowLeft, 
     Star, 
     MapPin,
-    AlertCircle
+    AlertCircle,
+    Calendar,
+    Eye,
+    ChevronDown,
+    ChevronUp,
+    CheckCircle,
+    Ban
 } from "lucide-react";
 import api from '@/lib/api';
-// Import the new component
+import { useAuth } from '@/utils/AuthContext';
+// Import components
 import UserServiceReviews from './UserServiceReviews';
+import BookingForm from './BookingForm';
+import BookingDetails from './BookingDetails';
 
 const ServiceDetails = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const location = useLocation();
+    const { isAuthenticated, currentUser } = useAuth();
     
     // State Management
     const [service, setService] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [showBookingForm, setShowBookingForm] = useState(false);
+    const [existingBooking, setExistingBooking] = useState(null);
+    const [bookingLoading, setBookingLoading] = useState(false);
+    const [showBookingDetails, setShowBookingDetails] = useState(false); // Initially hidden
+    const [showSuccessMessage, setShowSuccessMessage] = useState(false); // Success message visibility
+    const [serviceAvailability, setServiceAvailability] = useState({
+        isAvailable: true,
+        booking: null,
+        loading: false,
+        error: null
+    });
 
-    // Fetch service details
+    // Check if the URL contains an action parameter to show booking form
+    useEffect(() => {
+        const queryParams = new URLSearchParams(location.search);
+        const action = queryParams.get('action');
+        if (action === 'book') {
+            setShowBookingForm(true);
+        }
+    }, [location]);
+
+    // Check service availability
+    const checkServiceAvailability = async () => {
+        if (!id || !isAuthenticated) return;
+        
+        try {
+            setServiceAvailability(prev => ({ ...prev, loading: true, error: null }));
+            console.log(`Checking availability for service ${id}`);
+            
+            const response = await api.get(`/bookings/service/${id}/availability`);
+            
+            if (response.data) {
+                console.log(`Service ${id} availability status: ${response.data.isAvailable ? 'Available' : 'Unavailable'}`);
+                setServiceAvailability({
+                    isAvailable: response.data.isAvailable,
+                    booking: response.data.booking,
+                    loading: false,
+                    error: null
+                });
+            }
+        } catch (error) {
+            console.error('Error checking service availability:', error);
+            setServiceAvailability(prev => ({
+                ...prev,
+                loading: false,
+                error: 'Unable to check service availability'
+            }));
+        }
+    };
+
+    // Check localStorage for existing booking on initial render
+    useEffect(() => {
+        // Try to get booking information from localStorage
+        const storedBookingInfo = localStorage.getItem(`booking_service_${id}`);
+        if (storedBookingInfo) {
+            try {
+                const bookingInfo = JSON.parse(storedBookingInfo);
+                // Only restore if not expired (24 hours)
+                const now = new Date();
+                const storedTime = new Date(bookingInfo.timestamp);
+                const hoursDiff = (now - storedTime) / (1000 * 60 * 60);
+                
+                if (hoursDiff < 24) {
+                    setExistingBooking(bookingInfo.booking);
+                    // Don't show details automatically - keep them hidden until user clicks
+                    setShowBookingDetails(false);
+                } else {
+                    // Clear expired data
+                    localStorage.removeItem(`booking_service_${id}`);
+                }
+            } catch (e) {
+                console.error('Error parsing stored booking data:', e);
+                localStorage.removeItem(`booking_service_${id}`);
+            }
+        }
+    }, [id]);
+
+    // Fetch service details, check for existing booking, and verify service availability
     useEffect(() => {
         const fetchServiceDetails = async () => {
             try {
                 setLoading(true);
                 setError(null);
                 
-                const response = await api.get(`/services/${id}`);
-                if (response.data) {
-                    setService(response.data);
+                // Fetch service details
+                const serviceResponse = await api.get(`/services/${id}`);
+                if (serviceResponse.data) {
+                    setService(serviceResponse.data);
+                    
+                    // Check service availability
+                    await checkServiceAvailability();
+                    
+                    // If user is authenticated, check for existing bookings for this service
+                    if (isAuthenticated && currentUser) {
+                        setBookingLoading(true);
+                        try {
+                            const bookingResponse = await api.get(`/bookings/check/${id}`);
+                            
+                            if (bookingResponse.data && bookingResponse.data.hasBooking) {
+                                const booking = bookingResponse.data.booking;
+                                setExistingBooking(booking);
+                                
+                                // Save to localStorage with timestamp
+                                localStorage.setItem(`booking_service_${id}`, JSON.stringify({
+                                    booking,
+                                    timestamp: new Date().toISOString()
+                                }));
+                            } else {
+                                // No booking found - clear localStorage
+                                localStorage.removeItem(`booking_service_${id}`);
+                            }
+                        } catch (bookingError) {
+                            console.error('Error checking for existing booking:', bookingError);
+                        } finally {
+                            setBookingLoading(false);
+                        }
+                    }
                 } else {
                     setError('No data received from server');
                 }
@@ -44,7 +161,7 @@ const ServiceDetails = () => {
         if (id) {
             fetchServiceDetails();
         }
-    }, [id]);
+    }, [id, isAuthenticated, currentUser]);
 
     // Refresh service data when reviews change
     const handleReviewUpdate = async () => {
@@ -55,6 +172,63 @@ const ServiceDetails = () => {
             }
         } catch (error) {
             console.error('Error refreshing service data:', error);
+        }
+    };
+
+    // Handle new booking submission
+    const handleBookingComplete = (booking) => {
+        setExistingBooking(booking);
+        setShowBookingForm(false);
+        setShowBookingDetails(false); // Initially hide booking details
+        setShowSuccessMessage(true); // Show success message instead
+        
+        // Save to localStorage with timestamp
+        localStorage.setItem(`booking_service_${id}`, JSON.stringify({
+            booking,
+            timestamp: new Date().toISOString()
+        }));
+        
+        // Hide success message after 5 seconds
+        setTimeout(() => {
+            setShowSuccessMessage(false);
+        }, 5000);
+        
+        // Refresh service availability after a booking is made
+        checkServiceAvailability();
+    };
+
+    // Handle booking cancellation
+    const handleCancelBooking = () => {
+        setExistingBooking(prev => ({
+            ...prev,
+            status: 'cancelled' // Update the status locally
+        }));
+        setShowBookingDetails(false); // Hide booking details after cancellation
+        
+        // Update localStorage with cancelled status
+        if (existingBooking) {
+            localStorage.setItem(`booking_service_${id}`, JSON.stringify({
+                booking: {...existingBooking, status: 'cancelled'},
+                timestamp: new Date().toISOString()
+            }));
+        }
+        
+        // Show success message for cancellation
+        setShowSuccessMessage(true);
+        setTimeout(() => {
+            setShowSuccessMessage(false);
+        }, 5000);
+        
+        // Refresh service availability after cancellation
+        checkServiceAvailability();
+    };
+
+    // Handle toggle booking details visibility
+    const toggleBookingDetails = () => {
+        setShowBookingDetails(prev => !prev);
+        // Hide success message when showing details
+        if (!showBookingDetails) {
+            setShowSuccessMessage(false);
         }
     };
 
@@ -93,7 +267,10 @@ const ServiceDetails = () => {
         );
     }
 
-    // Main UI
+    // Determine if we should show booking button/details based on booking status
+    const hasActiveBooking = existingBooking && existingBooking.status !== 'cancelled' && 
+                             existingBooking.status !== 'rejected' && existingBooking.status !== 'completed';
+
     return (
         <div className="min-h-screen bg-gray-50">
             {/* Header */}
@@ -172,14 +349,105 @@ const ServiceDetails = () => {
                                         <p className="text-sm text-gray-500 mb-1">Price</p>
                                         <p className="text-3xl font-bold text-blue-600">${service.price}</p>
                                     </div>
-                                    <Button 
-                                        className="bg-blue-600 hover:bg-blue-700 text-lg py-4 px-8 w-full md:w-auto transition-all duration-200 ease-in-out transform hover:scale-105"
-                                    >
-                                        Book Now
-                                    </Button>
+                                    
+                                    {/* Book Now / View Booking Button */}
+                                    {bookingLoading || serviceAvailability.loading ? (
+                                        <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent"></div>
+                                    ) : hasActiveBooking ? (
+                                        <Button 
+                                            className={`bg-green-600 hover:bg-green-700 text-lg py-4 px-8 w-full md:w-auto transition-all duration-200 ease-in-out transform hover:scale-105 flex items-center ${showBookingDetails ? 'bg-green-700' : 'bg-green-600'}`}
+                                            onClick={toggleBookingDetails}
+                                        >
+                                            <Eye className="mr-2 h-5 w-5" />
+                                            {showBookingDetails ? 'Hide Details' : 'View Booking'}
+                                            {showBookingDetails ? 
+                                                <ChevronUp className="ml-2 h-5 w-5" /> : 
+                                                <ChevronDown className="ml-2 h-5 w-5" />
+                                            }
+                                        </Button>
+                                    ) : !serviceAvailability.isAvailable ? (
+                                        <Button 
+                                            className="bg-gray-400 text-lg py-4 px-8 w-full md:w-auto cursor-not-allowed"
+                                            disabled={true}
+                                        >
+                                            <Ban className="mr-2 h-5 w-5" />
+                                            Currently Unavailable
+                                        </Button>
+                                    ) : (
+                                        <Button 
+                                            className="bg-blue-600 hover:bg-blue-700 text-lg py-4 px-8 w-full md:w-auto transition-all duration-200 ease-in-out transform hover:scale-105"
+                                            onClick={() => {
+                                                if (isAuthenticated) {
+                                                    setShowBookingForm(!showBookingForm);
+                                                } else {
+                                                    navigate('/login', { state: { from: `/services/${id}` } });
+                                                }
+                                            }}
+                                        >
+                                            <Calendar className="mr-2 h-5 w-5" />
+                                            {showBookingForm ? 'Hide Booking Form' : 'Book Now'}
+                                        </Button>
+                                    )}
                                 </div>
                             </div>
                         </div>
+                        
+                        {/* Service Unavailability Message */}
+                        {!serviceAvailability.isAvailable && !hasActiveBooking && (
+                            <div className="mb-6 bg-amber-50 border border-amber-200 rounded-xl p-6">
+                                <div className="flex items-start space-x-4">
+                                    <AlertCircle className="h-6 w-6 text-amber-600 mt-1" />
+                                    <div>
+                                        <h3 className="text-lg font-semibold text-amber-800">
+                                            This service is currently booked
+                                        </h3>
+                                        <p className="text-amber-700 mt-1">
+                                            The service provider has accepted another booking. This service will become available
+                                            again once the current booking is completed or cancelled.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        
+                        {/* Success Message */}
+                        {showSuccessMessage && (
+                            <div className="mb-10 bg-green-50 border border-green-200 rounded-xl p-6 flex items-center">
+                                <CheckCircle className="h-8 w-8 text-green-600 mr-4" />
+                                <div>
+                                    <h3 className="text-xl font-semibold text-green-800">
+                                        {existingBooking && existingBooking.status === 'cancelled' 
+                                            ? 'Booking Cancelled!'
+                                            : 'Booking Successful!'}
+                                    </h3>
+                                    <p className="text-green-700">
+                                        {existingBooking && existingBooking.status === 'cancelled'
+                                            ? 'Your booking has been cancelled.'
+                                            : 'Your booking has been confirmed. Click "View Booking" to see details.'}
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Book Now Form */}
+                        {showBookingForm && !hasActiveBooking && serviceAvailability.isAvailable && (
+                            <div className="mb-10">
+                                <BookingForm 
+                                    service={service} 
+                                    onBookingComplete={handleBookingComplete}
+                                />
+                            </div>
+                        )}
+
+                        {/* Existing Booking Details */}
+                        {existingBooking && showBookingDetails && (
+                            <div className="mb-10">
+                                <BookingDetails 
+                                    booking={existingBooking} 
+                                    onCancelBooking={handleCancelBooking}
+                                />
+                            </div>
+                        )}
 
                         {/* Description */}
                         <div className="mb-10">
@@ -191,7 +459,7 @@ const ServiceDetails = () => {
                             </div>
                         </div>
 
-                        {/* Reviews Section - Using the UserServiceReviews component */}
+                        {/* Reviews Section */}
                         <UserServiceReviews 
                             serviceId={id} 
                             reviews={service.reviews} 
