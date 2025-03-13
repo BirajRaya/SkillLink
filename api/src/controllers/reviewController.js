@@ -19,6 +19,55 @@ const createReview = async (req, res) => {
     }
 };
 
+const checkReview = async (req,res) => {
+
+    const { service_id } = req.body;
+    const user_id = req.user.id;
+    console.log(service_id);
+    console.log(user_id);   
+
+    try {
+        const
+            result = await pool.query(
+                `SELECT * FROM reviews WHERE service_id = $1 AND user_id = $2`,
+                [service_id, user_id]
+            );
+
+        if (result.rows.length > 0) {
+            return res.status(400).json({ error: 'Review already exists' });
+        }
+        next();
+    }
+    catch (error) {                         
+        console.error('Error checking review:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+const checkUserReview = async (req, res) => {
+    const serviceId = parseInt(req.params.serviceId);
+    const user_id = req.user.id;
+
+    if (!serviceId || isNaN(serviceId)) {
+        return res.status(400).json({ error: 'Invalid service ID' });
+    }
+
+    try {
+        const result = await pool.query(
+            `SELECT * FROM reviews WHERE service_id = $1 AND user_id = $2`,
+            [serviceId, user_id]
+        );
+
+        res.json({
+            hasReview: result.rows.length > 0,
+            review: result.rows[0] || null
+        });
+    } catch (error) {
+        console.error('Error checking review:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
 const getServiceReviews = async (req, res) => {
     const { serviceId } = req.params;
 
@@ -92,5 +141,7 @@ module.exports = {
     createReview,
     getServiceReviews,
     updateReview,
+    checkReview,
+    checkUserReview,
     deleteReview
 };

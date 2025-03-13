@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { 
@@ -347,6 +348,10 @@ const BookingDetails = ({ booking, onCancelBooking }) => {
       </Dialog>
     </div>
   );
+};
+BookingDetails.propTypes = {
+  booking: PropTypes.object.isRequired,
+  onCancelBooking: PropTypes.func
 };
 
 export default BookingDetails;
