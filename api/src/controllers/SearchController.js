@@ -89,7 +89,73 @@ const getServiceDetails = async (req, res) => {
     }
 };
 
+const getCategoryRecommendations = async (req, res) => {
+    const { q } = req.query;
+    
+    if (!q || q.trim().length < 2) {
+        return res.json([]);
+    }
+    
+    try {
+        // Query to find categories that match the search term
+        const query = `
+            SELECT 
+                id,
+                category_name as name,
+                description
+            FROM categories
+            WHERE LOWER(category_name) LIKE LOWER($1)
+            AND is_active = true
+            ORDER BY 
+                CASE WHEN LOWER(category_name) LIKE LOWER($2) THEN 0 ELSE 1 END,
+                category_name
+            LIMIT 5
+        `;
+        
+        const result = await pool.query(query, [`%${q}%`, `${q}%`]);
+        
+        // Map appropriate icons to each category
+        const recommendations = result.rows.map(category => ({
+            id: category.id,
+            name: category.name,
+            description: category.description,
+            icon: getCategoryIcon(category.name)
+        }));
+        
+        res.json(recommendations);
+    } catch (error) {
+        console.error('Error getting category recommendations:', error);
+        res.status(500).json({ error: 'Failed to get category recommendations' });
+    }
+};
+
+/**
+ * Map category names to appropriate icons
+ * @param {string} categoryName - The name of the category
+ * @returns {string} - Icon name from Lucide icons
+ */
+function getCategoryIcon(categoryName) {
+    const name = categoryName.toLowerCase();
+    
+    // Specifically map your existing categories
+    if (name.includes('plumbing')) {
+        return 'wrench';
+    } else if (name.includes('cleaning')) {
+        return 'spray-can';
+    } else if (name.includes('event') || name.includes('planning')) {
+        return 'calendar';
+    } else if (name.includes('electrical')) {
+        return 'bolt';
+    } else if (name.includes('carpentry')) {
+        return 'hammer';
+    } else {
+        return 'briefcase'; // Default icon for other categories
+    }
+}
+
+
 module.exports = {
     searchServices,
-    getServiceDetails
+    getServiceDetails,
+    getCategoryRecommendations
 };

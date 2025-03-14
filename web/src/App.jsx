@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import LandingPage from "./pages/landing_page/landing_page";
 import SignupPage from "./pages/authentication/sign_up";
@@ -13,7 +12,8 @@ import OtpVerificationPage from "./pages/authentication/OtpVerificationPage";
 import ResetPasswordPage from "./pages/authentication/ResetPasswordPage";
 import { AuthProvider, useAuth } from './utils/AuthContext';
 import ServiceDetails from './pages/search/ServiceDetails';
-
+import MyBookings from './pages/users/MyBookings';
+import BookingDetailPage from './pages/bookings/BookingDetailPage';
 
 // Protected Route Component - Ensures only authenticated users with proper roles can access specific routes
 const ProtectedRoute = ({ children, requiredRole }) => {
@@ -21,7 +21,7 @@ const ProtectedRoute = ({ children, requiredRole }) => {
   
   // If user is not logged in, redirect to login page
   if (!isAuthenticated) {
-    return <Navigate to="/login" />;
+    return <Navigate to="/login" state={{ from: window.location.pathname }} />;
   }
   
   // If route requires a specific role and user doesn't have it, redirect to their appropriate dashboard
@@ -59,7 +59,6 @@ const AppWithAuth = () => {
             )
           } />  
           
-
           <Route path="/register" element={
             isAuthenticated ? (
               currentUser?.role === "admin" ? <Navigate to="/admin-dashboard" /> :
@@ -76,15 +75,26 @@ const AppWithAuth = () => {
             ) : <SignInPage />
           } />
 
-<Route path="/search" element={<SearchResults />} />
-<Route path="/services/:id" element={<ServiceDetails />} />
-
+          <Route path="/search" element={<SearchResults />} />
+          <Route path="/services/:id" element={<ServiceDetails />} />
+          
+          {/* Consolidated booking routes with ProtectedRoute */}
+          <Route path="/bookings" element={
+            <ProtectedRoute>
+              <MyBookings />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/bookings/view/:id" element={
+            <ProtectedRoute>
+              <BookingDetailPage />
+            </ProtectedRoute>
+          } />
 
           {/* Password recovery routes */}
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/verify-otp" element={<OtpVerificationPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
-
         </Route>
 
         {/* Protected Routes */}

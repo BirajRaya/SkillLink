@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
 const jwt = require('jsonwebtoken');
-const { addService, getAllServices, updateServiceById, deleteServiceById, getAllActiveCategories, getAllActiveVendors,fetchServices } = require('../controllers/admin/services');
+const { addService, getAllServices, updateServiceById, deleteServiceById, getAllActiveCategories, getAllActiveVendors, fetchServices } = require('../controllers/admin/services');
 
 // Middleware for protecting review routes
 const authenticateJWT = (req, res, next) => {
@@ -39,6 +39,55 @@ router.get('/active', getAllActiveCategories);
 router.get('/users/vendors', getAllActiveVendors);
 
 
+// Get services created by a specific user/vendor
+router.get('/user/:userId', authenticateJWT, async (req, res) => {
+  const { userId } = req.params;
+  const currentUser = req.user;
+  
+   // Helper function to get current formatted timestamp
+   const CURRENT_TIMESTAMP = () => {
+    const now = new Date();
+    return now.toISOString().slice(0, 19).replace('T', ' ');
+  };
+
+  // Helper function to get current username
+  const CURRENT_USER = () => {
+    return currentUser?.username || currentUser?.email || 'unknown-user';
+  };
+  
+  console.log(`[${CURRENT_TIMESTAMP}] Getting services for user/vendor ${userId}`);
+  
+  try {
+    // For vendors, return their created services
+    const result = await pool.query(
+      `SELECT s.*, 
+       c.category_name,
+       COALESCE(AVG(r.rating), 0) AS average_rating,
+       COUNT(r.id) AS review_count
+       FROM services s
+       LEFT JOIN categories c ON s.category_id = c.id
+       LEFT JOIN reviews r ON s.id = r.service_id
+       WHERE s.vendor_id = $1
+       GROUP BY s.id, c.category_name
+       ORDER BY s.created_at DESC`,
+      [userId]
+    );
+    
+    console.log(`[${CURRENT_TIMESTAMP}] Found ${result.rows.length} services for user ${userId}`);
+    
+    return res.status(200).json({
+      success: true,
+      services: result.rows
+    });
+  } catch (error) {
+    console.error(`[${CURRENT_TIMESTAMP}] Error fetching user services:`, error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch services',
+      error: error.message
+    });
+  }
+});
 
 // Search endpoint
 router.get('/search', async (req, res) => {
@@ -223,6 +272,27 @@ router.post('/:serviceId/reviews', authenticateJWT, async (req, res) => {
   } catch (error) {
     console.error('Error adding review:', error);
     res.status(500).json({ message: 'An error occurred while submitting your review' });
+  }
+});
+
+
+router.get('/:serviceId/reviews/check', authenticateJWT, async (req, res) => {
+  const { serviceId } = req.params;
+  const userId = req.user.userId;
+  
+  try {
+    // Check if user has already reviewed this service
+    const existingReview = await pool.query(
+      'SELECT id FROM reviews WHERE service_id = $1 AND user_id = $2',
+      [serviceId, userId]
+    );
+    
+    res.status(200).json({
+      reviewed: existingReview.rows.length > 0
+    });
+  } catch (error) {
+    console.error('Error checking review:', error);
+    res.status(500).json({ message: 'An error occurred while checking your review' });
   }
 });
 
