@@ -4,6 +4,7 @@ const cors = require("cors");
 const path = require('path');
 const http = require('http');
 const multer = require('multer');
+const { Server } = require("socket.io");
 
 // Import routes
 const authRoutes = require("./src/routes/authRoutes");
@@ -11,6 +12,7 @@ const adminRoutes = require("./src/routes/adminRoutes");
 const categoriesRoutes = require('./src/routes/categoriesRoutes');
 const serviceRoutes = require('./src/routes/serviceRoutes');
 const vendorRoutes = require('./src/routes/vendorRoutes');
+const chatRoutes = require('./src/routes/chatRoutes');
 
 
 // Create the Express App
@@ -39,6 +41,7 @@ app.use("/admin", adminRoutes);
 app.use("/categories", categoriesRoutes);
 app.use("/services", serviceRoutes);
 app.use("/vendors" , vendorRoutes);
+app.use("/chat", chatRoutes);
 
 
 // Global error handling middleware
@@ -74,6 +77,38 @@ app.use((req, res) => {
 
 // Create HTTP server
 const server = http.createServer(app);
+
+const io = new Server(server, {
+  cors: {
+    origin: "http://localhost:5173",
+    methods: ["GET", "POST"],
+  },
+});
+
+
+let onlineUsers = {};
+
+io.on("connection", (socket) => {
+
+  socket.on("joinChat", (userId) => {
+    onlineUsers[userId] = socket.id;
+  });
+
+  socket.on("sendMessage", ({ senderId, receiverId, message }) => {
+    const receiverSocketId = onlineUsers[receiverId];
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("receiveMessage", { senderId, message });
+    }
+  });
+
+  socket.on("disconnect", () => {
+    Object.keys(onlineUsers).forEach((key) => {
+      if (onlineUsers[key] === socket.id) {
+        delete onlineUsers[key];
+      }
+    });
+  });
+});
 
 // Start the server
 server.listen(PORT, () => {

@@ -8,6 +8,7 @@ import Disputes from './Disputes';
 import Analytics from './Analytics';
 import Categories from './categories';
 import Services from './Services';
+import ChatApp from '@/chat/ChatApp';
 
 const AdminDashboard = () => {
   const location = useLocation();
@@ -27,6 +28,8 @@ const AdminDashboard = () => {
       return <Disputes />;
     } else if (currentPath === '/admin-dashboard/analytics') {
       return <Analytics />;
+    }else if (currentPath === '/admin-dashboard/chat') {
+      return <ChatApp />;
     } else {
       return <Dashboard />;
     }
@@ -37,7 +40,7 @@ const AdminDashboard = () => {
       <Sidebar />
       <div className="flex-1 ml-64">
         <Header />
-        <main className="p-6">
+        <main className="">
           {renderContent()}
         </main>
       </div>

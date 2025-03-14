@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
 const jwt = require('jsonwebtoken');
-const { addService, getAllServices, updateServiceById, deleteServiceById, getAllActiveCategories, getAllActiveVendors } = require('../controllers/admin/services');
+const { addService, getAllServices, updateServiceById, deleteServiceById, getAllActiveCategories, getAllActiveVendors,fetchServices } = require('../controllers/admin/services');
 
 // Middleware for protecting review routes
 const authenticateJWT = (req, res, next) => {
@@ -28,13 +28,17 @@ const authenticateJWT = (req, res, next) => {
   }
 };
 
+
 // Existing routes
+router.get('/user/:userId', fetchServices);
 router.post('/add-service', addService);
 router.get('/getAllServices', getAllServices);
 router.put('/update-service/:id', updateServiceById);
 router.delete('/delete-service/:id', deleteServiceById);
 router.get('/active', getAllActiveCategories);
 router.get('/users/vendors', getAllActiveVendors);
+
+
 
 // Search endpoint
 router.get('/search', async (req, res) => {
