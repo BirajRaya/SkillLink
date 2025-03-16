@@ -28,6 +28,7 @@ const authenticateJWT = (req, res, next) => {
   }
 };
 
+
 // Existing routes
 router.get('/user/:userId', fetchServices);
 router.post('/add-service', addService);

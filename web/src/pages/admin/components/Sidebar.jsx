@@ -1,19 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import {
-  LayoutDashboard,
-  Users,
-  Building2,
-  AlertCircle,
-  BarChart,
-  Settings,
-  LogOut,
-  ChartBarStacked,
-  User,
-  HandPlatter,
-  Calendar,
-  Star,
-  Bell
-} from 'lucide-react';
+import {LayoutDashboard,Users,Building2,AlertCircle,BarChart,Settings,LogOut,ChartBarStacked,User,HandPlatter,Mails} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
@@ -36,6 +22,7 @@ const navItems = [
   { icon: BarChart, label: 'Analytics', path: '/admin-dashboard/analytics' },
   { icon: ChartBarStacked, label: 'Categories', path: '/admin-dashboard/categories' },
   { icon: HandPlatter, label: 'Services', path: '/admin-dashboard/services' },
+  { icon: Mails, label: 'Messages', path: '/admin-dashboard/chat' },
 ];
 
 const Sidebar = () => {

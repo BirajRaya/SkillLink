@@ -18,6 +18,8 @@ const Categories = () => {
   const [message, setMessage] = useState(null);
   const [successMessage, setSuccessMessage] = useState("");
   const { toast } = useToast();
+  // New state for tracking expanded descriptions
+  const [expandedDescriptions, setExpandedDescriptions] = useState({});
   
   // Form validation states
   const [errors, setErrors] = useState({
@@ -38,6 +40,14 @@ const Categories = () => {
     };
     
     return new Date(dateString).toLocaleDateString(undefined, options);
+  };
+
+  // Toggle description expansion
+  const toggleDescription = (id) => {
+    setExpandedDescriptions(prev => ({
+      ...prev,
+      [id]: !prev[id]
+    }));
   };
 
   // Validation function
@@ -378,8 +388,22 @@ const Categories = () => {
                       <div className="text-sm font-medium text-gray-900">{category.category_name}</div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900 max-w-[200px] truncate" title={category.description}>
-                        {category.description}
+                      <div className="text-sm text-gray-900 max-w-[300px]">
+                        {category.description.length > 100 
+                          ? (
+                              <>
+                                {expandedDescriptions[category.id] 
+                                  ? category.description 
+                                  : `${category.description.substring(0, 100)}...`}
+                                <button 
+                                  className="text-blue-500 ml-1 text-xs hover:underline focus:outline-none"
+                                  onClick={() => toggleDescription(category.id)}
+                                >
+                                  {expandedDescriptions[category.id] ? 'Show less' : 'Show more'}
+                                </button>
+                              </>
+                            ) 
+                          : category.description}
                       </div>
                     </td>
                     <td className="px-6 py-4">

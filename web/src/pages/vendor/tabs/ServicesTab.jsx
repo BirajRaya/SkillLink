@@ -420,7 +420,7 @@ const ServicesTab = ({ setShowNewServiceDialog }) => {
   const draftServices = services.filter(service => service.status === false);
 
   return (
-    <div className="space-y-6">
+<div className="y-6">
   <div className="bg-white rounded-lg shadow-md p-6">
     {/* Header section with title on left, search and button on right */}
     <div className="flex justify-between items-center mb-6">
@@ -640,12 +640,14 @@ const ServicesTab = ({ setShowNewServiceDialog }) => {
                             <button 
                               className="text-blue-500 hover:text-blue-700 transition-colors duration-150"
                               title="Edit Service"
+                              onClick={() => handleEdit(service)}
                             >
                               <Edit className="h-5 w-5" />
                             </button>
                             <button 
                               className="text-red-500 hover:text-red-700 transition-colors duration-150"
                               title="Delete Service"
+                              onClick={() => handleDelete(service.id)}
                             >
                               <Trash2 className="h-5 w-5" />
                             </button>
@@ -733,12 +735,14 @@ const ServicesTab = ({ setShowNewServiceDialog }) => {
                             <button 
                               className="text-blue-500 hover:text-blue-700 transition-colors duration-150"
                               title="Edit Service"
+                              onClick={() => handleEdit(service)}
                             >
                               <Edit className="h-5 w-5" />
                             </button>
                             <button 
                               className="text-red-500 hover:text-red-700 transition-colors duration-150"
                               title="Delete Service"
+                              onClick={() => handleDelete(service.id)}
                             >
                               <Trash2 className="h-5 w-5" />
                             </button>
@@ -754,7 +758,7 @@ const ServicesTab = ({ setShowNewServiceDialog }) => {
         </Tabs>
       </div>
       
-      <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="bg-white rounded-lg shadow-md p-6 mt-6">
         <h3 className="text-lg font-semibold mb-4">Service Insights</h3>
         <p className="text-gray-600 mb-6">
           See how your services are performing
