@@ -99,30 +99,34 @@ router.get('/search', async (req, res) => {
   try {
     const query = `
       SELECT 
-        s.id, 
-        s.name, 
-        s.description, 
-        c.category_name, 
-        s.vendor_id,
-        u.full_name AS vendor_name, 
-        s.price, 
-        s.location, 
-        s.image_url,
-        COALESCE(AVG(r.rating), 0) AS average_rating,
-        COUNT(r.id) AS review_count
-      FROM services s
-      JOIN categories c ON s.category_id = c.id
-      JOIN users u ON s.vendor_id = u.id
-      LEFT JOIN reviews r ON s.id = r.service_id
-      WHERE s.status = true
-        AND (
-          s.name ILIKE $1 
-          OR s.description ILIKE $1 
-          OR c.category_name ILIKE $1
-          OR s.location ILIKE $1
-        )
-      GROUP BY s.id, c.category_name, u.full_name
-      ORDER BY s.created_at DESC
+    s.id, 
+    s.name, 
+    s.description, 
+    c.category_name, 
+    s.vendor_id,
+    u.full_name AS vendor_name, 
+    s.price, 
+    s.location, 
+    s.image_url,
+    COALESCE(AVG(r.rating), 0) AS average_rating,
+    COUNT(r.id) AS review_count
+FROM services s
+JOIN categories c ON s.category_id = c.id
+JOIN users u ON s.vendor_id = u.id
+LEFT JOIN reviews r ON s.id = r.service_id
+LEFT JOIN vendor_availability va ON va.vendor_id = u.id
+WHERE s.status = true
+  AND u.is_active = 'active'  -- Ensure vendor is active
+  AND (va.status IS NULL OR va.status != 'unavailable')  -- Ensure vendor availability is not unavailable
+  AND c.is_active = true  -- Ensure category is active (boolean check)
+  AND (
+      s.name ILIKE $1 
+      OR s.description ILIKE $1 
+      OR c.category_name ILIKE $1
+      OR s.location ILIKE $1
+  )
+GROUP BY s.id, c.category_name, u.full_name
+ORDER BY s.created_at DESC;
     `;
     
     const result = await pool.query(query, [`%${q}%`]);
@@ -133,7 +137,6 @@ router.get('/search', async (req, res) => {
   }
 });
 
-// Public service details endpoint - FIX: Removed reference to r.updated_at
 router.get('/:id', async (req, res) => {
   const { id } = req.params;
   
@@ -173,7 +176,7 @@ router.get('/:id', async (req, res) => {
     
     const service = serviceResult.rows[0];
     
-    // FIX: Removed reference to r.updated_at as it doesn't exist in the database
+    
     const reviewsQuery = `
       SELECT 
         r.id,

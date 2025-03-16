@@ -218,6 +218,46 @@ exports.getVendorBookings = async (req, res) => {
     });
   }
 };
+// Check if user has a booking for a specific service with status pending or accepted
+exports.checkServiceBookingdate = async (req, res) => { 
+  const { serviceId } = req.params;
+  
+  console.log(`[${getCurrentTimestamp()}] Checking if user ${getUserIdentifier(req.user)} has booking for service ${serviceId}`);
+  
+  try {
+    const result = await pool.query(
+      `SELECT * FROM bookings
+       WHERE  service_id = $1
+       AND status IN ('pending', 'accepted') 
+       ORDER BY booking_date DESC
+       LIMIT 1`,
+      [serviceId]
+    );
+    
+    if (result.rows.length > 0) {
+      console.log(`[${getCurrentTimestamp()}] Found booking ${result.rows[0].id} for service ${serviceId}`);
+      res.status(200).json({
+        success: true,
+        hasBooking: true,
+        booking: result.rows[0]
+      });
+    } else {
+      console.log(`[${getCurrentTimestamp()}] No booking found for service ${serviceId}`);
+      res.status(200).json({
+        success: true,
+        hasBooking: false,
+        booking: null
+      });
+    }
+  } catch (error) {
+    console.error(`[${getCurrentTimestamp()}] Error checking service booking:`, error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to check booking',
+      error: error.message
+    });
+  }
+};
 
 // Check if user has a booking for a specific service
 exports.checkServiceBooking = async (req, res) => {
@@ -229,7 +269,7 @@ exports.checkServiceBooking = async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT * FROM bookings
-       WHERE user_id = $1 AND service_id = $2 AND status != 'cancelled'
+       WHERE user_id = $1 AND service_id = $2 
        ORDER BY booking_date DESC
        LIMIT 1`,
       [userId, serviceId]
@@ -575,12 +615,10 @@ exports.checkBookingByService = async (req, res) => {
 exports.checkServiceAvailability = async (req, res) => {
   const { serviceId } = req.params;
   
-  console.log(`[${getCurrentTimestamp()}] Checking availability for service ${serviceId}`);
-  
   try {
     // Check if this service has any accepted bookings that haven't been completed/cancelled/rejected
     const result = await pool.query(
-      `SELECT b.* 
+      `SELECT b.booking_date, b.user_id
        FROM bookings b
        WHERE b.service_id = $1 
        AND b.status = 'accepted'
@@ -589,17 +627,14 @@ exports.checkServiceAvailability = async (req, res) => {
     );
     
     const isAvailable = result.rows.length === 0;
-    
-    if (!isAvailable) {
-      console.log(`[${getCurrentTimestamp()}] Service ${serviceId} is currently booked (booking ID: ${result.rows[0].id})`);
-    } else {
-      console.log(`[${getCurrentTimestamp()}] Service ${serviceId} is available for booking`);
-    }
-    
+  
     res.status(200).json({
       success: true,
       isAvailable,
-      booking: isAvailable ? null : result.rows[0]
+      booking: isAvailable ? null : {
+        booking_date: result.rows[0].booking_date,
+        user_id: result.rows[0].user_id
+      }
     });
   } catch (error) {
     console.error(`[${getCurrentTimestamp()}] Error checking service availability:`, error);
@@ -620,5 +655,6 @@ module.exports = {
   cancelBooking: exports.cancelBooking,
   updateBookingStatus: exports.updateBookingStatus,
   checkBookingByService: exports.checkBookingByService,
-  checkServiceAvailability: exports.checkServiceAvailability
+  checkServiceAvailability: exports.checkServiceAvailability,
+  checkServiceBookingdate: exports.checkServiceBookingdate
 };

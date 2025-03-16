@@ -7,6 +7,7 @@ import LockImage from "../../assets/image/signup.png";
 import axios from "axios";
 import { useState, useEffect } from "react";
 import { useAuth } from "../../utils/AuthContext";
+import { useLocation, useNavigate } from 'react-router-dom';
 
 const SigninPage = () => {
   const { login, navigateByRole, isAuthenticated, currentUser } = useAuth();
@@ -17,6 +18,8 @@ const SigninPage = () => {
     email: "",
     password: ""
   });
+  const navigate = useNavigate();
+  const location = useLocation(); // Add this line to use location
 
   // Check if user is already logged in
   useEffect(() => {
@@ -44,11 +47,30 @@ const SigninPage = () => {
       console.log('Login response:', response.data);
 
       if (response.data.token) {
-        // Login and get user role
-        const userRole = await login(response.data.user, response.data.token);
-        
-        // Navigate based on role - only do this once
-        navigateByRole(userRole);
+        try {
+          // Login and get user role
+          const userRole = await login(response.data.user, response.data.token);
+          const from = location.state?.from || null;
+          console.log('From:', from, 'User Role:', userRole);
+          
+          // Check if user is a regular user (not a vendor or admin)
+          if (userRole === 'user' && from) {
+            // For regular users, redirect to the intended service page if it exists
+            console.log("User role detected, navigating to stored path:", from);
+            
+            // Clear any queued microtasks before navigating
+            setTimeout(() => {
+              navigate(from, { replace: true });
+              console.log("Navigation executed to:", from);
+            }, 100); // Small delay to ensure other operations complete
+          } else {
+            // For vendors or admins, or if no 'from' path exists, use the default role-based navigation
+            console.log("Using role-based navigation for role:", userRole);
+            navigateByRole(userRole);
+          }
+        } catch (navError) {
+          console.error("Navigation error:", navError);
+        }
       }
     } catch (err) {
       console.error('Login error:', err);

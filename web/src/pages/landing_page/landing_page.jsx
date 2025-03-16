@@ -22,7 +22,7 @@ const LandingPage = () => {
 
   // Update recommendations when search term changes
   useEffect(() => {
-    if (searchTerm.trim().length > 1) {
+    if (searchTerm.trim().length > 0) {
       const term = searchTerm.toLowerCase().trim();
       
       // Filter and sort categories based on search term
@@ -39,10 +39,9 @@ const LandingPage = () => {
         });
       
       setRecommendations(filtered);
-      setShowRecommendations(filtered.length > 0);
     } else {
-      setRecommendations([]);
-      setShowRecommendations(false);
+      // When search is empty, show all categories
+      setRecommendations(categories);
     }
   }, [searchTerm]);
 
@@ -122,69 +121,72 @@ const LandingPage = () => {
             
             {/* Search Bar with Recommendations */}
             <div className="max-w-2xl mx-auto mb-12 relative search-container">
-              <form onSubmit={handleSearchClick} className="flex gap-4">
-                <div className="relative flex-grow">
-                  <Input 
-                    className="w-full" 
-                    placeholder="Search for skilled workers..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (recommendations.length > 0) {
-                        setShowRecommendations(true);
-                      }
-                    }}
-                  />
-                  
-                  {/* Recommendations dropdown */}
-                  {showRecommendations && (
-                    <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
-                      <ul>
-                        {recommendations.map((category) => (
-                          <li 
-                            key={category.id}
-                            className="px-4 py-2 hover:bg-blue-50 cursor-pointer flex items-center"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRecommendationClick(category);
-                            }}
-                          >
-                            <span className="mr-2 text-blue-600">
-                              {renderCategoryIcon(category.icon)}
-                            </span>
-                            <div>
-                              <div className="font-medium">{category.name}</div>
-                              {category.description && (
-                                <div className="text-xs text-gray-500 truncate">
-                                  {category.description}
-                                </div>
-                              )}
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+      <form onSubmit={handleSearchClick} className="flex gap-4">
+        <div className="relative flex-grow">
+        <Input 
+  className="w-full" 
+  placeholder="Search for skilled workers..."
+  value={searchTerm}
+  onChange={(e) => setSearchTerm(e.target.value)}
+  onKeyPress={handleKeyPress}
+  onClick={(e) => {
+    e.stopPropagation();
+    // Show all categories when clicked and nothing is typed
+    if (searchTerm.trim().length === 0) {
+      setRecommendations(categories);
+    }
+    setShowRecommendations(true);
+  }}
+/>
+          
+  
+          
+          {/* Recommendations dropdown */}
+         {showRecommendations && (
+  <div className="absolute z-10 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
+    <ul>
+      {recommendations.map((category) => (
+        <li 
+          key={category.id}
+          className="px-4 py-2 hover:bg-blue-50 cursor-pointer"
+          onClick={() => handleRecommendationClick(category)}
+        >
+          <div className="flex items-start">
+            <span className="text-blue-600 mr-2 mt-1">
+              {renderCategoryIcon(category.icon)}
+            </span>
+            <div className="flex-1">
+              <div className="font-medium text-left">{category.name}</div>
+              {category.description && (
+                <div className="text-xs text-gray-500 truncate text-left">
+                  {category.description}
                 </div>
-                
-                <Button 
-                  type="submit"
-                  className="flex items-center gap-2"
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
-                  ) : (
-                    <>
-                      <Search className="h-4 w-4" />
-                      Search
-                    </>
-                  )}
-                </Button>
-              </form>
+              )}
             </div>
+          </div>
+        </li>
+      ))}
+    </ul>
+  </div>
+)}
+        </div>
+        
+        <Button 
+          type="submit"
+          className="flex items-center gap-2"
+          disabled={loading}
+        >
+          {loading ? (
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+          ) : (
+            <>
+              <Search className="h-4 w-4" />
+              Search
+            </>
+          )}
+        </Button>
+      </form>
+    </div>
           </div>
 
           {/* Features Section */}

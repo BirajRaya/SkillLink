@@ -39,6 +39,45 @@ router.post('/update-availability', async (req, res) => {
     }
 });
 
+router.get('/:vendor_id/avaibilability', async (req, res) => {
+    const { vendor_id } = req.params;
+    try {
+      // Query the vendor_availability table for the specified vendor
+      const query = `
+        SELECT vendor_id, status, working_days, working_hours, response_time, additional_notes
+        FROM vendor_availability
+        WHERE vendor_id = $1 AND status = 'available';
+      `;
+      
+      const { rows } = await pool.query(query, [vendor_id]);
+  
+      if (rows.length === 0) {
+        return res.status(404).json({ 
+          error: 'Vendor availability not found or vendor is unavailable',
+          isAvailable: false
+        });
+      }
+  
+      // Return the complete vendor availability information
+      res.status(200).json({
+        vendor_id: rows[0].vendor_id,
+        status: rows[0].status,
+        working_days: rows[0].working_days,
+        working_hours: rows[0].working_hours,
+        response_time: rows[0].response_time,
+        additional_notes: rows[0].additional_notes,
+        isAvailable: true
+      });
+    } catch (err) {
+      console.error('Error fetching vendor availability:', err);
+      res.status(500).json({ 
+        error: 'Internal server error',
+        isAvailable: false
+      });
+    }
+  });
+  
+
 router.get('/getAvailability/:vendorId', async (req, res) => {
     const { vendorId } = req.params;
 

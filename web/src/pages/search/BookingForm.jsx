@@ -12,8 +12,7 @@ import {
   Calendar, 
   MapPin, 
   Clock, 
-  Home, 
-  DollarSign, 
+  Home,  
   CheckCircle,
   ChevronRight,
   Info,
@@ -29,6 +28,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import api from '@/lib/api';
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
 
 // Time slot options - 30-minute intervals from 9 AM to 6 PM with AM/PM format
 const TIME_SLOTS = [];
@@ -62,9 +64,13 @@ const BookingForm = ({ service, onBookingComplete }) => {
   
   // Get today's date in local timezone, not UTC
   const getLocalISODate = (date) => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
+    // Create a new date forcing the time to noon to avoid timezone issues
+    const d = new Date(date);
+    // Extract year, month, and day components
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    // Return in YYYY-MM-DD format
     return `${year}-${month}-${day}`;
   };
   
@@ -78,6 +84,8 @@ const BookingForm = ({ service, onBookingComplete }) => {
   const getCurrentUsername = () => {
     return "sudeepbanjade21"; // Use the provided username
   };
+
+
   
   const [bookingData, setBookingData] = useState({
     date: '',
@@ -99,37 +107,131 @@ const BookingForm = ({ service, onBookingComplete }) => {
     error: null
   });
   
-  // Function to check service availability
-  const checkServiceAvailability = async () => {
-    if (!service.id) return;
+  // Vendor availability data
+  const [vendorAvailability, setVendorAvailability] = useState(null);
+  const [availableDates, setAvailableDates] = useState([]);
+  
+  // State to track booked dates for this service
+  const [bookedDates, setBookedDates] = useState([]);
+  const [existingBooking, setExistingBooking] = useState(null);
+
+
+  // Function to check user's existing booking
+const checkExistingBooking = async () => {
+  if (!service.id || !isAuthenticated) return;
+  
+  try {
     
-    try {
-      setServiceAvailability(prev => ({ ...prev, isChecking: true, error: null }));
-      console.log(`[${getCurrentTimestamp()}] User ${getCurrentUsername()} checking availability for service ${service.id}`);
+    // Call the booking check API
+    const bookingResponse = await api.get(`/bookings/check/${service.id}/date`);
+    
+    if (bookingResponse.data && bookingResponse.data.hasBooking) {
+      const booking = bookingResponse.data.booking;
+      setExistingBooking(booking);
       
-      const response = await api.get(`/bookings/service/${service.id}/availability`);
-      
-      if (response.data) {
-        console.log(`[${getCurrentTimestamp()}] Service ${service.id} availability status: ${response.data.isAvailable ? 'Available' : 'Unavailable'}`);
-        setServiceAvailability({
-          isChecking: false,
-          isAvailable: response.data.isAvailable,
-          error: null
-        });
+      // Extract date from booking and add to booked dates
+      if (booking.booking_date) {
+        const bookedDate = getLocalISODate(new Date(booking.booking_date));
+        console.log(`[${getCurrentTimestamp()}] User has existing booking on date: ${bookedDate}`);
         
-        if (!response.data.isAvailable) {
-          setError('This service is currently unavailable as it has been booked by another user.');
-        }
+        // Add to booked dates list to block this date
+        setBookedDates(prevDates => [...prevDates, bookedDate]);
       }
+    } else {
+      console.log(`[${getCurrentTimestamp()}] No existing bookings found for this service`);
+    }
+  } catch (err) {
+    console.error(`[${getCurrentTimestamp()}] Error checking existing bookings:`, err);
+  }
+};
+  
+  // Function to fetch vendor availability
+  const fetchVendorAvailability = async () => {
+
+    try {
+      // In a real app, you would fetch this from an API instead of hardcoding
+      const response = await api.get(`/vendors/${service.vendor_id}/avaibilability`);
+    
+      
+      const data = response.data;
+      console.log(data);
+      
+      // Using hardcoded data for this example
+      console.log(`[${getCurrentTimestamp()}] Fetched vendor availability for vendor ${service.vendor_id}`);
+      setVendorAvailability(data);
+      
+      // Generate available dates for the next 90 days based on vendor working days
+      generateAvailableDates(data);
     } catch (err) {
-      console.error(`[${getCurrentTimestamp()}] Error checking service availability:`, err);
-      setServiceAvailability({
-        isChecking: false,
-        isAvailable: true, // Assume available on error for UX
-        error: 'Could not verify service availability'
-      });
+      console.error(`[${getCurrentTimestamp()}] Error fetching vendor availability:`, err);
+      setError('Could not load vendor availability data. Please try again later.');
     }
   };
+  
+  // Function to generate available dates based on vendor working days
+  const generateAvailableDates = (vendorData) => {
+    if (!vendorData || !vendorData.working_days) return;
+    
+    const dates = [];
+    const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    
+    // Generate dates for the next 90 days
+    const startDate = new Date();
+    for (let i = 0; i < 90; i++) {
+      const date = new Date();
+      date.setDate(startDate.getDate() + i);
+      
+      // Check if this day of week is a working day for the vendor
+      const dayName = days[date.getDay()];
+      const isAvailable = vendorData.working_days[dayName] === true;
+      
+      if (isAvailable) {
+        dates.push(getLocalISODate(date));
+      }
+    }
+    
+    setAvailableDates(dates);
+  };
+  
+  // Function to check if a date is available for booking
+  const isDateAvailable = (dateStr) => {
+    return availableDates.includes(dateStr);
+  };
+  
+  // Function to get available time slots based on vendor working hours
+  const getVendorTimeSlots = (vendorData, date) => {
+    if (!vendorData || !vendorData.working_hours) return TIME_SLOTS;
+    
+    const workingHours = vendorData.working_hours;
+    const startTime = workingHours.start;
+    const endTime = workingHours.end;
+    
+    // Convert to 24-hour format for comparison
+    const [startHour, startMinute] = startTime.split(':').map(Number);
+    const [endHour, endMinute] = endTime.split(':').map(Number);
+    
+    // Filter time slots within working hours
+    return TIME_SLOTS.filter(slot => {
+      const [slotHour, slotMinute] = slot.value.split(':').map(Number);
+      
+      // Check if slot is within working hours
+      if (slotHour < startHour || slotHour > endHour) {
+        return false;
+      }
+      
+      // Edge cases for start and end times
+      if (slotHour === startHour && slotMinute < startMinute) {
+        return false;
+      }
+      
+      if (slotHour === endHour && slotMinute >= endMinute) {
+        return false;
+      }
+      
+      return true;
+    });
+  };
+  
 
   useEffect(() => {
     // Log the current date and user for debugging
@@ -142,19 +244,21 @@ const BookingForm = ({ service, onBookingComplete }) => {
     }
     
     // Check service availability when component mounts
-    checkServiceAvailability();
+    checkExistingBooking();
+    
+    // Fetch vendor availability data
+    fetchVendorAvailability();
   }, [isAuthenticated, navigate, service.id]);
 
   // Effect to update available time slots whenever date changes
   useEffect(() => {
     if (bookingData.date) {
-      console.log("Date selected:", bookingData.date);
-      console.log("Today in local timezone:", today);
-      console.log("Is selected date today?", bookingData.date === today);
+      // First, get vendor-defined time slots based on working hours
+      let vendorSlots = getVendorTimeSlots(vendorAvailability, bookingData.date);
       
-      // Calculate available time slots based on selected date
+      // Then, if it's today, filter out past times with buffer
       const slots = bookingData.date === today 
-        ? TIME_SLOTS.filter(timeSlot => {
+        ? vendorSlots.filter(timeSlot => {
             const [hours, minutes] = timeSlot.value.split(':').map(Number);
             
             // Add buffer time (30 minutes)
@@ -169,7 +273,7 @@ const BookingForm = ({ service, onBookingComplete }) => {
             
             return hours > minHour || (hours === minHour && minutes >= minMinute);
           })
-        : TIME_SLOTS; // All slots for future dates
+        : vendorSlots; // All vendor slots for future dates
       
       console.log("Available time slots count:", slots.length);
       setAvailableTimeSlots(slots);
@@ -183,7 +287,7 @@ const BookingForm = ({ service, onBookingComplete }) => {
       // No date selected, clear time slots
       setAvailableTimeSlots([]);
     }
-  }, [bookingData.date]);
+  }, [bookingData.date, vendorAvailability]);
 
   // Load prefill data from previous bookings
   useEffect(() => {
@@ -222,6 +326,32 @@ const BookingForm = ({ service, onBookingComplete }) => {
     if (name === 'address') {
       validateAddress(value);
     }
+  };
+
+  // Date input change handler with vendor availability check
+  const handleDateChange = (e) => {
+    const { name, value } = e.target;
+    
+    // Check if the selected date is already booked
+    if (bookedDates.includes(value)) {
+      setFieldErrors(prev => ({
+        ...prev,
+        date: 'This service is already booked on this date. Please select another date.'
+      }));
+      return;
+    }
+    
+    // Check if the selected date is a vendor available date
+    if (!isDateAvailable(value)) {
+      setFieldErrors(prev => ({
+        ...prev,
+        date: 'This service is not available on the selected date'
+      }));
+      return;
+    }
+    
+    setBookingData(prev => ({ ...prev, [name]: value }));
+    setFieldErrors(prev => ({...prev, date: undefined}));
   };
 
   // Format postal code as user types (uppercase and space after 3rd character)
@@ -328,6 +458,12 @@ const BookingForm = ({ service, onBookingComplete }) => {
       
       if (selectedDate > maxBookingDate) {
         newErrors.date = 'Bookings cannot be made more than 90 days in advance';
+        isValid = false;
+      }
+      
+      // Check if the selected date is a vendor available date
+      if (!isDateAvailable(bookingData.date)) {
+        newErrors.date = 'This service is not available on the selected date';
         isValid = false;
       }
     }
@@ -468,34 +604,6 @@ const BookingForm = ({ service, onBookingComplete }) => {
     }
   };
 
-  // Service unavailable message
-  if (!serviceAvailability.isAvailable && !serviceAvailability.isChecking) {
-    return (
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="bg-amber-50 border border-amber-200 p-8 rounded-2xl shadow-md"
-      >
-        <div className="flex flex-col items-center text-center">
-          <Ban className="h-16 w-16 text-amber-600 mb-4" />
-          <h3 className="text-xl font-semibold text-amber-800 mb-2">
-            This Service Is Currently Unavailable
-          </h3>
-          <p className="text-amber-700 max-w-md mb-6">
-            This service is currently booked by another customer. It will become available
-            again once the current booking is completed, cancelled, or rejected.
-          </p>
-          <Button 
-            onClick={() => navigate('/search')} 
-            className="bg-amber-600 hover:bg-amber-700"
-          >
-            Browse Other Services
-          </Button>
-        </div>
-      </motion.div>
-    );
-  }
-
   // Loading state when checking availability
   if (serviceAvailability.isChecking) {
     return (
@@ -507,6 +615,50 @@ const BookingForm = ({ service, onBookingComplete }) => {
       </div>
     );
   }
+
+ // Get day of week name for a given date
+  const getDayOfWeek = (dateStr) => {
+    if (!dateStr) return '';
+    
+    // Create a new date at noon to avoid timezone issues
+    const date = new Date(dateStr);
+    date.setHours(12, 0, 0, 0);
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    return days[date.getDay()];
+  };
+
+  // Add this new function to check if a date should be disabled
+  const isDateDisabled = (date) => {
+    if (!vendorAvailability?.working_days) return true;
+    
+    // Format the date to YYYY-MM-DD for comparison
+    const dateStr = getLocalISODate(date);
+    
+    // Check if this date is in the booked dates
+    const isBooked = bookedDates.includes(dateStr);
+    
+    // Get the day name (sunday, monday, etc.)
+    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const dayIndex = date.getDay();
+    const dayName = dayNames[dayIndex];
+    
+    // Check if it's a working day
+    const isWorkingDay = vendorAvailability.working_days[dayName];
+    
+    // Check if date is in the past
+    const isPastDate = date < new Date(today);
+    
+    // Check if date is too far in the future (90 days)
+    const maxDate = new Date();
+    maxDate.setDate(maxDate.getDate() + 90);
+    const isFutureDate = date > maxDate;
+    
+    // Date is disabled if ANY of these conditions are true
+    return !isWorkingDay || isPastDate || isFutureDate || isBooked;
+  };
+  
+  // Replace the old disabledDays function with the updated isDateDisabled
+  const disabledDays = isDateDisabled;
 
   return (
     <motion.div 
@@ -564,13 +716,49 @@ const BookingForm = ({ service, onBookingComplete }) => {
           </div>
           <div className="bg-blue-50 px-4 py-3 rounded-lg">
             <div className="flex items-center">
-              <DollarSign className="h-5 w-5 text-blue-600 mr-1" />
               <span className="text-xl font-bold text-blue-700">${service.price}</span>
             </div>
             <p className="text-xs text-gray-500 text-center mt-1">Total Price</p>
           </div>
         </div>
       </motion.div>
+      
+      {/* Vendor Availability Summary */}
+      {vendorAvailability && (
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.25 }}
+          className="bg-blue-50 rounded-xl p-4 mb-6 border border-blue-100 shadow-sm"
+        >
+          <div className="flex items-start">
+            <Info className="h-5 w-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
+            <div>
+              <h4 className="font-medium text-blue-700 mb-1">Service Availability</h4>
+              <p className="text-sm text-gray-600 mb-2">
+                This service is available on the following days:
+              </p>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {Object.entries(vendorAvailability.working_days).map(([day, isAvailable]) => (
+                  <span 
+                    key={day}
+                    className={`text-xs px-2 py-1 rounded-full ${
+                      isAvailable 
+                        ? 'bg-blue-100 text-blue-800 border border-blue-200' 
+                        : 'bg-gray-100 text-gray-400 border border-gray-200'
+                    }`}
+                  >
+                    {day.charAt(0).toUpperCase() + day.slice(1)}
+                  </span>
+                ))}
+              </div>
+              <p className="text-sm text-gray-600">
+                Hours: <span className="font-medium">{vendorAvailability.working_hours.start} - {vendorAvailability.working_hours.end}</span>
+              </p>
+            </div>
+          </div>
+        </motion.div>
+      )}
       
       {error && (
         <motion.div 
@@ -602,25 +790,81 @@ const BookingForm = ({ service, onBookingComplete }) => {
               <Label htmlFor="date" className="text-gray-700">
                 Appointment Date <span className="text-red-500">*</span>
               </Label>
-              <div className="relative">
-                <Input
-                  id="date"
-                  name="date"
-                  type="date"
-                  value={bookingData.date}
-                  onChange={handleChange}
-                  min={today}
-                  className={`pl-10 py-6 border-2 focus:ring-2 focus:ring-blue-200 focus:border-blue-400 ${
-                    fieldErrors.date ? "border-red-300 focus:border-red-400 focus:ring-red-200" : "border-gray-200"
-                  }`}
-                  required
-                />
-                <Calendar className="absolute left-3 top-3 h-5 w-5 text-gray-400 pointer-events-none" />
-              </div>
+<Popover>
+  <PopoverTrigger asChild>
+    <Button
+      variant="outline"
+      className={`w-full pl-10 py-6 h-auto text-left font-normal relative ${
+        fieldErrors.date ? "border-red-300" : "border-gray-200"
+      }`}
+    >
+      <Calendar className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+      {bookingData.date ? (
+        // Manually create a date object from the stored string to avoid timezone issues
+        (() => {
+          const [year, month, day] = bookingData.date.split('-').map(Number);
+          return format(new Date(year, month - 1, day), "PPP");
+        })()
+      ) : (
+        <span className="text-gray-400">Select a date</span>
+      )}
+    </Button>
+  </PopoverTrigger>
+  <PopoverContent className="w-auto p-0" align="start">
+    {bookedDates.length > 0 && (
+      <div className="p-2 bg-amber-50 border-b border-amber-100">
+        <p className="text-xs text-amber-700 flex items-center">
+          <AlertCircle className="h-3 w-3 mr-1" />
+          Some dates are unavailable due to existing bookings
+        </p>
+      </div>
+    )}
+    <CalendarComponent
+      mode="single"
+      selected={bookingData.date ? (() => {
+        // Properly create date object from string parts to avoid timezone shifts
+        const [year, month, day] = bookingData.date.split('-').map(Number);
+        return new Date(year, month - 1, day);
+      })() : undefined}
+      onSelect={(date) => {
+        if (date) {
+          // Use the updated getLocalISODate function
+          const formattedDate = getLocalISODate(date);
+          console.log("Selected date:", date);
+          console.log("Formatted date:", formattedDate);
+          handleDateChange({ target: { name: 'date', value: formattedDate } });
+        }
+      }}
+      disabled={disabledDays}
+      initialFocus
+      className="rounded-md border"
+    />
+  </PopoverContent>
+</Popover>
+              {/* Show available days of the week */}
+              {vendorAvailability && (
+                <div className="mt-2">
+                  <p className="text-blue-600 text-xs flex items-center">
+                    <Info className="h-3 w-3 mr-1" />
+                    Available on: {Object.entries(vendorAvailability.working_days)
+                      .filter(([_, isAvailable]) => isAvailable)
+                      .map(([day]) => day.charAt(0).toUpperCase() + day.slice(1))
+                      .join(', ')}
+                  </p>
+                </div>
+              )}
+              {/* Error message */}
               {fieldErrors.date && (
                 <p className="text-red-500 text-xs mt-1 flex items-center">
                   <AlertCircle className="h-3 w-3 mr-1" />
                   {fieldErrors.date}
+                </p>
+              )}
+              {/* Selected day display */}
+              {bookingData.date && !fieldErrors.date && (
+                <p className="text-green-600 text-xs mt-1 flex items-center">
+                  <CheckCircle className="h-3 w-3 mr-1" />
+                  {getDayOfWeek(bookingData.date)}
                 </p>
               )}
             </div>
@@ -637,11 +881,12 @@ const BookingForm = ({ service, onBookingComplete }) => {
                 // Key ensures the component completely remounts when date changes
                 key={`time-select-${bookingData.date || 'none'}`}
               >
-                <SelectTrigger className={`py-6 pl-10 border-2 focus:ring-2 focus:ring-blue-200 focus:border-blue-400 ${
+                <SelectTrigger className={`w-full pl-10 py-6 h-auto text-left font-normal relative ${
                   fieldErrors.time ? "border-red-300 focus:border-red-400 focus:ring-red-200" : "border-gray-200"
                 }`}>
                   <Clock className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-                  <SelectValue placeholder="Select time" />
+                  <SelectValue className='' placeholder="" />
+                  <span className="text-gray-400">Select Time</span>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
@@ -660,11 +905,18 @@ const BookingForm = ({ service, onBookingComplete }) => {
                   {fieldErrors.time}
                 </p>
               ) : (
-                !bookingData.date && (
+                !bookingData.date ? (
                   <p className="text-blue-600 text-xs mt-1 flex items-center">
                     <Calendar className="h-3 w-3 mr-1" />
                     Please select a date first
                   </p>
+                ) : (
+                  vendorAvailability && (
+                    <p className="text-blue-600 text-xs mt-1 flex items-center">
+                      <Clock className="h-3 w-3 mr-1" />
+                      Hours: {vendorAvailability.working_hours.start} - {vendorAvailability.working_hours.end}
+                    </p>
+                  )
                 )
               )}
             </div>
@@ -690,162 +942,161 @@ const BookingForm = ({ service, onBookingComplete }) => {
             </Label>
             <div className="relative">
               <Input
-                                id="address"
-                                name="address"
-                                placeholder="123 Main St, Apt 4B"
-                                value={bookingData.address}
-                                onChange={handleChange}
-                                className={`pl-10 py-6 border-2 focus:ring-2 focus:ring-blue-200 focus:border-blue-400 ${
-                                  fieldErrors.address ? "border-red-300 focus:border-red-400 focus:ring-red-200" : "border-gray-200"
-                                }`}
-                                required
-                              />
-                              <Home className="absolute left-3 top-3 h-5 w-5 text-gray-400 pointer-events-none" />
-                            </div>
-                            {fieldErrors.address && (
-                              <p className="text-red-500 text-xs mt-1 flex items-center">
-                                <AlertCircle className="h-3 w-3 mr-1" />
-                                {fieldErrors.address}
-                              </p>
-                            )}
-                          </div>
-                          
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                            {/* City Selection */}
-                            <div className="space-y-2">
-                              <Label htmlFor="city" className="text-gray-700">
-                                City <span className="text-red-500">*</span>
-                              </Label>
-                              <Select 
-                                onValueChange={(value) => handleSelectChange('city', value)}
-                                value={bookingData.city}
-                              >
-                                <SelectTrigger className={`py-6 border-2 focus:ring-2 focus:ring-blue-200 focus:border-blue-400 ${
-                                  fieldErrors.city ? "border-red-300 focus:border-red-400 focus:ring-red-200" : "border-gray-200"
-                                }`}>
-                                  <SelectValue placeholder="Select city" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="Mississauga">Mississauga</SelectItem>
-                                  <SelectItem value="Brampton">Brampton</SelectItem>
-                                  <SelectItem value="Toronto">Toronto</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              {fieldErrors.city && (
-                                <p className="text-red-500 text-xs mt-1 flex items-center">
-                                  <AlertCircle className="h-3 w-3 mr-1" />
-                                  {fieldErrors.city}
-                                </p>
-                              )}
-                            </div>
-                
-                            {/* Postal Code */}
-                            <div className="space-y-2">
-                              <Label htmlFor="postalCode" className="text-gray-700">
-                                Postal Code <span className="text-red-500">*</span>
-                              </Label>
-                              <Input
-                                id="postalCode"
-                                name="postalCode"
-                                placeholder="A1A 1A1"
-                                value={bookingData.postalCode}
-                                onChange={handlePostalCodeChange}
-                                className={`py-6 border-2 focus:ring-2 focus:ring-blue-200 focus:border-blue-400 ${
-                                  fieldErrors.postalCode ? "border-red-300 focus:border-red-400 focus:ring-red-200" : "border-gray-200"
-                                }`}
-                                required
-                                maxLength={7}
-                              />
-                              {fieldErrors.postalCode ? (
-                                <p className="text-red-500 text-xs mt-1 flex items-center">
-                                  <AlertCircle className="h-3 w-3 mr-1" />
-                                  {fieldErrors.postalCode}
-                                </p>
-                              ) : (
-                                <p className="text-xs text-gray-500 mt-1">Format: A1A 1A1</p>
-                              )}
-                            </div>
-                
-                            {/* Province */}
-                            <div className="space-y-2">
-                              <Label htmlFor="province" className="text-gray-700">Province</Label>
-                              <Select disabled value="Ontario">
-                                <SelectTrigger className="border-2 border-gray-100 bg-gray-50 text-gray-500 py-6">
-                                  <SelectValue>Ontario</SelectValue>
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="Ontario">Ontario</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                
-                            {/* Country */}
-                            <div className="space-y-2">
-                              <Label htmlFor="country" className="text-gray-700">Country</Label>
-                              <Select disabled value="Canada">
-                                <SelectTrigger className="border-2 border-gray-100 bg-gray-50 text-gray-500 py-6">
-                                  <SelectValue>Canada</SelectValue>
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="Canada">Canada</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </div>
-                        </motion.div>
-                
-                        {/* Notes */}
-                        <motion.div 
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          transition={{ delay: 0.5 }}
-                          className="bg-white p-5 rounded-xl border border-blue-100 shadow-sm"
-                        >
-                          <div className="space-y-2">
-                            <Label htmlFor="notes" className="text-gray-700 font-medium">
-                              Special Instructions (Optional)
-                            </Label>
-                            <Textarea
-                              id="notes"
-                              name="notes"
-                              placeholder="Any special instructions or requirements..."
-                              value={bookingData.notes}
-                              onChange={handleChange}
-                              rows={4}
-                              className="border-2 border-gray-200 focus:ring-2 focus:ring-blue-200 focus:border-blue-400"
-                            />
-                          </div>
-                        </motion.div>
-                
-                        {/* Confirmation Section */}
-                        <motion.div 
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          transition={{ delay: 0.6 }}
-                          className="mt-8"
-                        >
-                          <Button 
-                            type="submit" 
-                            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-6 text-lg font-medium rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2"
-                            disabled={loading}
-                          >
-                            {loading ? (
-                              <>
-                                <Loader2 className="h-5 w-5 animate-spin" />
-                                Processing your booking...
-                              </>
-                            ) : (
-                              <>
-                                Confirm Booking
-                                <ChevronRight className="h-5 w-5" />
-                              </>
-                            )}
-                          </Button>
-                        </motion.div>
-                      </form>
-                    </motion.div>
-                  );
-                };
-                
-                export default BookingForm;
-                
+                id="address"
+                name="address"
+                placeholder="123 Main St, Apt 4B"
+                value={bookingData.address}
+                onChange={handleChange}
+                className={`pl-10 py-6 border-2 focus:ring-2 focus:ring-blue-200 focus:border-blue-400 ${
+                  fieldErrors.address ? "border-red-300 focus:border-red-400 focus:ring-red-200" : "border-gray-200"
+                }`}
+                required
+              />
+              <Home className="absolute left-3 top-3 h-5 w-5 text-gray-400 pointer-events-none" />
+            </div>
+            {fieldErrors.address && (
+              <p className="text-red-500 text-xs mt-1 flex items-center">
+                <AlertCircle className="h-3 w-3 mr-1" />
+                {fieldErrors.address}
+              </p>
+            )}
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {/* City Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="city" className="text-gray-700">
+                City <span className="text-red-500">*</span>
+              </Label>
+              <Select 
+                onValueChange={(value) => handleSelectChange('city', value)}
+                value={bookingData.city}
+              >
+                <SelectTrigger className={`py-6 border-2 focus:ring-2 focus:ring-blue-200 focus:border-blue-400 ${
+                  fieldErrors.city ? "border-red-300 focus:border-red-400 focus:ring-red-200" : "border-gray-200"
+                }`}>
+                  <SelectValue placeholder="Select city" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Mississauga">Mississauga</SelectItem>
+                  <SelectItem value="Brampton">Brampton</SelectItem>
+                  <SelectItem value="Toronto">Toronto</SelectItem>
+                </SelectContent>
+              </Select>
+              {fieldErrors.city && (
+                <p className="text-red-500 text-xs mt-1 flex items-center">
+                  <AlertCircle className="h-3 w-3 mr-1" />
+                  {fieldErrors.city}
+                </p>
+              )}
+            </div>
+    
+            {/* Postal Code */}
+            <div className="space-y-2">
+              <Label htmlFor="postalCode" className="text-gray-700">
+                Postal Code <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="postalCode"
+                name="postalCode"
+                placeholder="A1A 1A1"
+                value={bookingData.postalCode}
+                onChange={handlePostalCodeChange}
+                className={`py-6 border-2 focus:ring-2 focus:ring-blue-200 focus:border-blue-400 ${
+                  fieldErrors.postalCode ? "border-red-300 focus:border-red-400 focus:ring-red-200" : "border-gray-200"
+                }`}
+                required
+                maxLength={7}
+              />
+              {fieldErrors.postalCode ? (
+                <p className="text-red-500 text-xs mt-1 flex items-center">
+                  <AlertCircle className="h-3 w-3 mr-1" />
+                  {fieldErrors.postalCode}
+                </p>
+              ) : (
+                <p className="text-xs text-gray-500 mt-1">Format: A1A 1A1</p>
+              )}
+            </div>
+    
+            {/* Province */}
+            <div className="space-y-2">
+              <Label htmlFor="province" className="text-gray-700">Province</Label>
+              <Select disabled value="Ontario">
+                <SelectTrigger className="border-2 border-gray-100 bg-gray-50 text-gray-500 py-6">
+                  <SelectValue>Ontario</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Ontario">Ontario</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+    
+            {/* Country */}
+            <div className="space-y-2">
+              <Label htmlFor="country" className="text-gray-700">Country</Label>
+              <Select disabled value="Canada">
+                <SelectTrigger className="border-2 border-gray-100 bg-gray-50 text-gray-500 py-6">
+                  <SelectValue>Canada</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Canada">Canada</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </motion.div>
+    
+        {/* Notes */}
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5 }}
+          className="bg-white p-5 rounded-xl border border-blue-100 shadow-sm"
+        >
+          <div className="space-y-2">
+            <Label htmlFor="notes" className="text-gray-700 font-medium">
+              Special Instructions (Optional)
+            </Label>
+            <Textarea
+              id="notes"
+              name="notes"
+              placeholder="Any special instructions or requirements..."
+              value={bookingData.notes}
+              onChange={handleChange}
+              rows={4}
+              className="border-2 border-gray-200 focus:ring-2 focus:ring-blue-200 focus:border-blue-400"
+            />
+          </div>
+        </motion.div>
+    
+        {/* Confirmation Section */}
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.6 }}
+          className="mt-8"
+        >
+          <Button 
+            type="submit" 
+            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-6 text-lg font-medium rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2"
+            disabled={loading}
+          >
+            {loading ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin" />
+                Processing your booking...
+              </>
+            ) : (
+              <>
+                Confirm Booking
+                <ChevronRight className="h-5 w-5" />
+              </>
+            )}
+          </Button>
+        </motion.div>
+      </form>
+    </motion.div>
+  );
+};
+
+export default BookingForm;
