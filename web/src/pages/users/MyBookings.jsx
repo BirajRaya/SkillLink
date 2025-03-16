@@ -58,7 +58,7 @@ const MyBookings = () => {
   const [submittingDispute, setSubmittingDispute] = useState(null);
   const reviewTextareaRefs = useRef({});
   const disputeTextareaRefs = useRef({});
-  
+  const disputeRefs = useRef({}); 
   const itemsPerPage = 5;
   const getCurrentTimestamp = () => {
     return new Date().toISOString().replace('T', ' ').slice(0, 19);
@@ -148,7 +148,7 @@ const MyBookings = () => {
   
   // Handle showing the review form for a specific booking
   const handleShowReviewForm = (bookingId) => {
-    // Initialize review data for this booking if not already done
+    // Initialize review  data for this booking if not already done
     if (!reviewData[bookingId]) {
       setReviewData(prev => ({
         ...prev,
@@ -188,6 +188,26 @@ const MyBookings = () => {
 
   // Handle closing the dispute form for a specific booking
   const handleCloseDisputeForm = (bookingId) => {
+    setDisputeData(prev => ({
+      ...prev,
+      [bookingId]: {
+        reason: '',
+        description: '',
+        evidence: null
+      }
+    }));
+
+    // Reset the textarea field manually
+    if (disputeTextareaRefs.current && disputeTextareaRefs.current[bookingId]) {
+      disputeTextareaRefs.current[bookingId].value = '';
+    }
+
+    // Reset file input if you have a ref to it
+    // if (disputeFileInputRefs.current && disputeFileInputRefs.current[bookingId]) {
+    //   disputeFileInputRefs.current[bookingId].value = '';
+    // }
+
+    // Close the dispute form
     setDisputeForms(prev => ({
       ...prev,
       [bookingId]: false
@@ -195,47 +215,67 @@ const MyBookings = () => {
   };
 
   // Helper function to preserve cursor position
-  const updateTextFieldWithCursor = (textareaRef, newValue) => {
-    // Store the current cursor position
-    const cursorPosition = textareaRef.selectionStart;
-    
-    // Update the value
-    textareaRef.value = newValue;
-    
-    // Restore the cursor position after React re-renders
-    setTimeout(() => {
-      if (textareaRef) {
-        textareaRef.focus();
-        textareaRef.setSelectionRange(cursorPosition, cursorPosition);
-      }
-    }, 0);
+  const updateTextFieldWithCursor = (ref, value) => {
+    if (!ref) return;
+    const start = ref.selectionStart;
+    const end = ref.selectionEnd;
+
+    // Ensure the state updates before reapplying the cursor position
+    requestAnimationFrame(() => {
+      ref.setSelectionRange(start, end);
+    });
   };
 
   const reviewDataRef = useRef({});
+
+
   // Handle review comment change
   const handleCommentChange = (bookingId, event) => {
     const newValue = event.target.value;
+    const textareaRef = reviewTextareaRefs.current[bookingId];
     
-    // Update the ref directly
-    if (!reviewDataRef.current[bookingId]) {
-      reviewDataRef.current[bookingId] = {};
+    // if (!reviewDataRef.current[bookingId]) {
+    //   reviewDataRef.current[bookingId] = {};
+    // }
+    // reviewDataRef.current[bookingId].comment = newValue;
+
+    setReviewData(prev => ({
+      ...prev,
+      [bookingId]: {
+        ...prev[bookingId],
+        comment: newValue
+      }
+    }));
+
+    if (textareaRef) {
+      updateTextFieldWithCursor(textareaRef, newValue);
     }
-    reviewDataRef.current[bookingId].comment = newValue;
   };
 
-  // Create a ref for dispute data similar to what we have for reviews
-  const disputeDataRef = useRef({});
-  
-  // Handle dispute description change - modified to avoid losing focus
+  // Handle dispute description change
   const handleDisputeDescriptionChange = (bookingId, event) => {
     const newValue = event.target.value;
-    
-    // Update the ref directly
-    if (!disputeDataRef.current[bookingId]) {
-      disputeDataRef.current[bookingId] = {};
+
+    // Store locally in ref (prevents rerendering)
+    if (disputeRefs.current[bookingId]) {
+      disputeRefs.current[bookingId].value = newValue;
     }
-    disputeDataRef.current[bookingId].description = newValue;
   };
+
+  const handleBlur = (bookingId) => {
+    const newValue = disputeRefs.current[bookingId]?.value;
+
+    // Update state only when needed (onBlur, not on every keystroke)
+    setDisputeData(prev => ({
+      ...prev,
+      [bookingId]: {
+        ...(prev[bookingId] || {}),
+        description: newValue || ''
+      }
+    }));
+  };
+
+
 
   // Handle dispute reason change
   const handleDisputeReasonChange = (bookingId, reason) => {
@@ -249,19 +289,33 @@ const MyBookings = () => {
   };
 
   // Handle dispute evidence file upload
-  const handleDisputeFileChange = (bookingId, event) => {
+  const handleDisputeFileChange = async (bookingId, event) => {
     if (event.target.files && event.target.files[0]) {
-      setDisputeData(prev => ({
-        ...prev,
-        [bookingId]: {
-          ...prev[bookingId],
-          evidence: event.target.files[0]
-        }
-      }));
+      const file = event.target.files[0];
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        console.log("Base64 Data:", reader.result); // Debugging log
+        setDisputeData(prev => ({
+          ...prev,
+          [bookingId]: {
+            ...prev[bookingId],
+            evidence: reader.result  // Store Base64 string
+          }
+        }));
+      };
+      console.log(disputeData);
+
+      reader.onerror = (error) => {
+        console.error("Error reading file:", error);
+      };
+
+      reader.readAsDataURL(file);
+    } else {
+      console.warn("No file selected");
     }
   };
 
-  // Handle rating change
   const handleRatingChange = (bookingId, value) => {
     setReviewData(prev => ({
       ...prev,
@@ -341,10 +395,7 @@ const MyBookings = () => {
       return;
     }
     
-    const disputeInfo = disputeDataRef.current[booking.id] || {};
-    const disputeReason = disputeData[booking.id]?.reason;
-    
-    if (!disputeReason) {
+    if (!disputeData[booking.id]?.reason) {
       toast({
         variant: "destructive",
         title: "Required Field",
@@ -353,7 +404,7 @@ const MyBookings = () => {
       return;
     }
     
-    if (!disputeInfo.description || disputeInfo.description.trim() === '') {
+    if (!disputeData[booking.id]?.description || disputeData[booking.id].description.trim() === '') {
       toast({
         variant: "destructive",
         title: "Required Field",
@@ -368,10 +419,10 @@ const MyBookings = () => {
       // Create form data for file upload
       const formData = new FormData();
       formData.append('booking_id', booking.id);
-      formData.append('reason', disputeReason);
-      formData.append('description', disputeInfo.description);
+      formData.append('reason', disputeData[booking.id].reason);
+      formData.append('description', disputeData[booking.id].description);
       
-      if (disputeData[booking.id]?.evidence) {
+      if (disputeData[booking.id].evidence) {
         formData.append('evidence', disputeData[booking.id].evidence);
       }
       
@@ -632,15 +683,14 @@ const MyBookings = () => {
             <div className="mb-3">
               <label className="block text-sm font-medium mb-1">Your Feedback:</label>
               <Textarea 
-  ref={el => reviewTextareaRefs.current[booking.id] = el}
-  defaultValue=""
-  onChange={(e) => handleCommentChange(booking.id, e)}
-  placeholder="Share your experience with this service..." 
-  rows={3} 
-  disabled={submittingReview === booking.id}
-  className="w-full p-2 border border-blue-200 rounded-md focus:ring-blue-500 focus:border-blue-500"
-/>
-
+                ref={el => reviewTextareaRefs.current[booking.id] = el}
+                defaultValue=""
+                onChange={(e) => handleCommentChange(booking.id, e)}
+                placeholder="Share your experience with this service..." 
+                rows={3} 
+                disabled={submittingReview === booking.id}
+                className="w-full p-2 border border-blue-200 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              />
             </div>
             <div className="flex justify-end gap-2">
               <Button
@@ -701,14 +751,29 @@ const MyBookings = () => {
             <div className="mb-3">
               <label className="block text-sm font-medium mb-1">Description:</label>
               <Textarea
-                ref={el => disputeTextareaRefs.current[booking.id] = el}
-                defaultValue=""
-                onChange={(e) => handleDisputeDescriptionChange(booking.id, e)}
+                ref={(el) => {
+                  if (el) {
+                    if (!disputeTextareaRefs.current) disputeTextareaRefs.current = {};
+                    disputeTextareaRefs.current[booking.id] = el;
+                    disputeRefs.current[booking.id] = el; // Store reference
+                  }
+                }}
+                defaultValue={disputeData[booking.id]?.description || ''} // Use defaultValue instead of value
+                onChange={(e) => {
+                  if (e.target.value.length <= 500) {
+                    handleDisputeDescriptionChange(booking.id, e);
+                  }
+                }}
+                onBlur={() => handleBlur(booking.id)} // Update state only onBlur
                 placeholder="Please provide details about your dispute..."
                 rows={4}
+                maxLength={500}
                 disabled={submittingDispute === booking.id}
                 className="w-full p-2 border border-red-200 rounded-md focus:ring-red-500 focus:border-red-500"
               />
+              <p className="text-xs text-gray-500 mt-1">
+                {disputeData[booking.id]?.description?.length || 0}/500 characters
+              </p>
             </div>
             <div className="mb-3">
               <label className="block text-sm font-medium mb-1">Evidence (optional):</label>

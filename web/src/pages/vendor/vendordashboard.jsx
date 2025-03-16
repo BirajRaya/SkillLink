@@ -1,12 +1,13 @@
 /* eslint-disable no-unused-vars */
 // VendorDashboard.jsx - Main component file
 import { useState, useEffect } from 'react';
+import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '../../utils/AuthContext';
 import axios from 'axios';
-import { 
-  Menu, 
-  User, 
-  ChevronDown, 
+import {
+  Menu,
+  User,
+  ChevronDown,
   BellRing,
   Settings,
   Clock,
@@ -53,7 +54,8 @@ const VendorDashboard = () => {
   const [hasFilledAvailability, setHasFilledAvailability] = useState(false);
   const [showNewServiceDialog, setShowNewServiceDialog] = useState(false);
   const [showAlertDialog, setShowAlertDialog] = useState(false);
-  
+  const { toast } = useToast();
+
   const [availabilityData, setAvailabilityData] = useState({
     status: "available", // available, partially-available, unavailable
     workingDays: {
@@ -72,7 +74,9 @@ const VendorDashboard = () => {
     responseTime: "same-day", // same-day, within-24h, within-48h
     additionalNotes: ""
   });
-  
+
+  const [mainAvailabilityData, setMainAvailabilityData] = useState(availabilityData)
+
   const [profileData, setProfileData] = useState({
     fullName: currentUser?.fullName || '',
     profilePicture: currentUser?.profilePicture || '',
@@ -83,7 +87,7 @@ const VendorDashboard = () => {
     confirmPassword: '',
     address: currentUser?.address || ''
   });
-  
+
   const [newService, setNewService] = useState({
     title: '',
     description: '',
@@ -124,7 +128,7 @@ const VendorDashboard = () => {
         const response = await axios.get(`http://localhost:5000/vendors/getAvailability/${currentUser.id}`);
         if (response.data) {
           setAvailabilityData(response.data);
-          console.log(availabilityData);
+          setMainAvailabilityData(response.data)
           // setHasFilledAvailability(true);
         } else {
           // If no availability data found, show the form
@@ -133,12 +137,21 @@ const VendorDashboard = () => {
         }
       } catch (error) {
         console.error("Error checking availability:", error);
+        const errorMessage = error.response?.data?.message || error.message || "Failed to fetch availability data.";
+
         // If error (likely no availability set), show the form
         setShowAvailabilityForm(true);
         setHasFilledAvailability(false);
+        toast({
+          title: "Error",
+          description: errorMessage,
+          variant: "destructive", // Red background
+          className: "bg-red-500 text-white font-medium border-l-4 border-red-700"
+        });
+
       }
     };
-    
+
     checkAvailability();
   }, [currentUser.id]);
 
@@ -152,7 +165,7 @@ const VendorDashboard = () => {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        const base64String = reader.result;        
+        const base64String = reader.result;
         setProfileData({
           ...profileData,
           profilePicture: base64String,
@@ -196,10 +209,10 @@ const VendorDashboard = () => {
       [field]: value
     });
   };
-  
+
   const handleAvailabilitySubmit = async (e) => {
     e.preventDefault();
-    
+
     try {
       setIsLoading(true);
       // Replace with your actual API endpoint
@@ -207,14 +220,27 @@ const VendorDashboard = () => {
         vendorId: currentUser.id,
         availability: availabilityData
       });
-      
+
       setHasFilledAvailability(true);
       setShowAvailabilityForm(false);
       setIsLoading(false);
       setActiveTab("dashboard");
+      setMainAvailabilityData(availabilityData)
+      toast({
+        title: "Success",
+        description: "Your Availability has been updated successfully!",
+        variant: "success",
+        className: "bg-green-500 text-white font-medium border-l-4 border-green-700"
+      });
     } catch (error) {
       console.error("Error updating availability:", error);
       setError("Failed to update availability status. Please try again.");
+      toast({
+        title: "Error",
+        description: "Failed to Update Availability.",
+        variant: "destructive", // Red background
+        className: "bg-red-500 text-white font-medium border-l-4 border-red-700"
+      });
       setIsLoading(false);
     }
   };
@@ -252,24 +278,36 @@ const VendorDashboard = () => {
         newPassword: '',
         confirmPassword: ''
       });
-      
+
       updateUser.role = currentUser.role;
       updateUser.id = currentUser.id;
       setCurrentUser(updateUser);
       localStorage.setItem('user', JSON.stringify(updateUser));
       setError("");
       setShowProfileDialog(false);
+      toast({
+        title: "Success",
+        description: "Your profile has been updated successfully!",
+        variant: "success",
+        className: "bg-green-500 text-white font-medium border-l-4 border-green-700"
+      });
     } catch (err) {
       console.error('profile change error:', err);
       setError(err.response?.data?.message || "Failed to update profile");
+      toast({
+        title: "Error",
+        description: "Failed to Update Profile.",
+        variant: "destructive", // Red background
+        className: "bg-red-500 text-white font-medium border-l-4 border-red-700"
+      });
     } finally {
       setIsLoading(false);
     }
   };
-  
+
   const handleSubmitNewService = async (e) => {
     e.preventDefault();
-    
+
     try {
       setIsLoading(true);
       // Replace with your actual API endpoint
@@ -277,7 +315,7 @@ const VendorDashboard = () => {
         vendorId: currentUser.id,
         service: newService
       });
-      
+
       setShowNewServiceDialog(false);
       setNewService({
         title: '',
@@ -340,23 +378,23 @@ const VendorDashboard = () => {
       setActiveTab
     };
 
-    switch(activeTab) {
+    switch (activeTab) {
       case "dashboard":
         return <DashboardTab {...commonProps} />;
       case "availability":
         return (
-          <AvailabilityTab 
+          <AvailabilityTab
             availabilityData={availabilityData}
             handleAvailabilityChange={handleAvailabilityChange}
             handleWorkingDayChange={handleWorkingDayChange}
             handleAvailabilitySubmit={handleAvailabilitySubmit}
             isLoading={isLoading}
-            setActiveTab={setActiveTab} 
+            setActiveTab={setActiveTab}
           />
         );
       case "services":
         return (
-          <ServicesTab 
+          <ServicesTab
             setShowNewServiceDialog={setShowNewServiceDialog}
             {...commonProps}
           />
@@ -379,7 +417,7 @@ const VendorDashboard = () => {
   // If availability form needs to be shown and hasn't been filled, redirect to form
   if (showAvailabilityForm && !hasFilledAvailability) {
     return (
-      <AvailabilityForm 
+      <AvailabilityForm
         availabilityData={availabilityData}
         handleAvailabilityChange={handleAvailabilityChange}
         handleWorkingDayChange={handleWorkingDayChange}
@@ -392,7 +430,7 @@ const VendorDashboard = () => {
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
       {/* Dashboard Header with Profile Actions */}
-      <Header 
+      <Header
         currentUser={currentUser}
         profileData={profileData}
         sidebarOpen={sidebarOpen}
@@ -405,11 +443,11 @@ const VendorDashboard = () => {
       {/* Main content with sidebar */}
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
-        <Sidebar 
+        <Sidebar
           activeTab={activeTab}
           setActiveTab={setActiveTab}
           sidebarOpen={sidebarOpen}
-          availabilityData={availabilityData}
+          availabilityData={mainAvailabilityData}
         />
 
         {/* Main content area */}
@@ -419,7 +457,7 @@ const VendorDashboard = () => {
       </div>
 
       {/* Dialogs */}
-      <ProfileDialog 
+      <ProfileDialog
         showProfileDialog={showProfileDialog}
         setShowProfileDialog={setShowProfileDialog}
         profileData={profileData}
@@ -431,7 +469,7 @@ const VendorDashboard = () => {
         error={error}
       />
 
-      <NewServiceDialog 
+      <NewServiceDialog
         showNewServiceDialog={showNewServiceDialog}
         setShowNewServiceDialog={setShowNewServiceDialog}
         newService={newService}
@@ -441,7 +479,7 @@ const VendorDashboard = () => {
         error={error}
       />
 
-      <SuccessAlertDialog 
+      <SuccessAlertDialog
         showAlertDialog={showAlertDialog}
         setShowAlertDialog={setShowAlertDialog}
       />

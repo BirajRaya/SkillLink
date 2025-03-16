@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import {LayoutDashboard,Users,Building2,AlertCircle,BarChart,Settings,LogOut,ChartBarStacked,User,HandPlatter,Mails} from 'lucide-react';
+import {LayoutDashboard,Users,Building2,AlertCircle,Calendar,Star,BarChart,Settings,LogOut,ChartBarStacked,User,HandPlatter,Mails} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
