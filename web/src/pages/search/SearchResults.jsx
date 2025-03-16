@@ -346,13 +346,6 @@ const SearchResults = () => {
                                                 />
                                             </div>
                                         </div>
-                                        <Button
-                                            onClick={handlePriceRangeChange}
-                                            className="w-full mt-2 bg-blue-600 hover:bg-blue-700 text-white"
-                                            size="sm"
-                                        >
-                                            Apply
-                                        </Button>
                                         {(minPrice || maxPrice) && (
                                             <button 
                                                 onClick={() => {
