@@ -1,4 +1,5 @@
 const pool = require('../../config/db');
+const { get } = require('../../routes/categoriesRoutes');
 const { createCategory, getCategories, updateCategory, deleteCategory } = require('./adminQueries');
 
 // Add a new category
@@ -51,6 +52,27 @@ const getAllCategories = async (req, res) => {
   }
 };
 
+const getAllCategoriesName = async (req, res) => {
+  const client = await pool.connect();
+
+  try {
+    const query = 'SELECT id, category_name FROM categories ORDER BY category_name';
+    const result = await client.query(query);
+    
+    // Send the result as a response
+    res.status(200).json(result.rows);
+  } catch (error) {
+    // Handle any errors that occur during the query
+    console.error('Error executing query', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  } finally {
+    // Always release the client back to the pool
+    client.release();
+  }
+};
+
+
+
 // Update category by ID
 const updateCategoryById = async (req, res) => {
   const { id } = req.params;
@@ -100,4 +122,5 @@ module.exports = {
   getAllCategories,
   updateCategoryById,
   deleteCategoryById,
+  getAllCategoriesName,
 };

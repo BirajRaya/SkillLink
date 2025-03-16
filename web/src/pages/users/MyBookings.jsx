@@ -195,48 +195,46 @@ const MyBookings = () => {
   };
 
   // Helper function to preserve cursor position
-  const updateTextFieldWithCursor = (ref, value) => {
-    if (!ref.current) return;
-    const start = ref.current.selectionStart;
-    const end = ref.current.selectionEnd;
-    ref.current.value = value;
-    ref.current.setSelectionRange(start, end);
+  const updateTextFieldWithCursor = (textareaRef, newValue) => {
+    // Store the current cursor position
+    const cursorPosition = textareaRef.selectionStart;
+    
+    // Update the value
+    textareaRef.value = newValue;
+    
+    // Restore the cursor position after React re-renders
+    setTimeout(() => {
+      if (textareaRef) {
+        textareaRef.focus();
+        textareaRef.setSelectionRange(cursorPosition, cursorPosition);
+      }
+    }, 0);
   };
 
+  const reviewDataRef = useRef({});
   // Handle review comment change
   const handleCommentChange = (bookingId, event) => {
     const newValue = event.target.value;
-    const textareaRef = reviewTextareaRefs.current[bookingId];
     
-    setReviewData(prev => ({
-      ...prev,
-      [bookingId]: {
-        ...prev[bookingId],
-        comment: newValue
-      }
-    }));
-
-    if (textareaRef) {
-      updateTextFieldWithCursor(textareaRef, newValue);
+    // Update the ref directly
+    if (!reviewDataRef.current[bookingId]) {
+      reviewDataRef.current[bookingId] = {};
     }
+    reviewDataRef.current[bookingId].comment = newValue;
   };
 
-  // Handle dispute description change
+  // Create a ref for dispute data similar to what we have for reviews
+  const disputeDataRef = useRef({});
+  
+  // Handle dispute description change - modified to avoid losing focus
   const handleDisputeDescriptionChange = (bookingId, event) => {
     const newValue = event.target.value;
-    const textareaRef = disputeTextareaRefs.current[bookingId];
     
-    setDisputeData(prev => ({
-      ...prev,
-      [bookingId]: {
-        ...prev[bookingId],
-        description: newValue
-      }
-    }));
-
-    if (textareaRef) {
-      updateTextFieldWithCursor(textareaRef, newValue);
+    // Update the ref directly
+    if (!disputeDataRef.current[bookingId]) {
+      disputeDataRef.current[bookingId] = {};
     }
+    disputeDataRef.current[bookingId].description = newValue;
   };
 
   // Handle dispute reason change
@@ -263,6 +261,17 @@ const MyBookings = () => {
     }
   };
 
+  // Handle rating change
+  const handleRatingChange = (bookingId, value) => {
+    setReviewData(prev => ({
+      ...prev,
+      [bookingId]: {
+        ...prev[bookingId],
+        rating: value
+      }
+    }));
+  };
+
   // Handle submitting a review
   const handleSubmitReview = async (booking) => {
     if (!booking || !booking.id || !booking.service_id) {
@@ -281,7 +290,7 @@ const MyBookings = () => {
         service_id: booking.service_id,
         booking_id: booking.id,
         rating: reviewData[booking.id]?.rating || 5,
-        comment: reviewData[booking.id]?.comment?.trim() || ''
+        comment: reviewDataRef.current[booking.id]?.comment || ''
       };
       
       console.log(`[${getCurrentTimestamp()}] Submitting review for booking ${booking.id}:`, reviewPayload);
@@ -332,7 +341,10 @@ const MyBookings = () => {
       return;
     }
     
-    if (!disputeData[booking.id]?.reason) {
+    const disputeInfo = disputeDataRef.current[booking.id] || {};
+    const disputeReason = disputeData[booking.id]?.reason;
+    
+    if (!disputeReason) {
       toast({
         variant: "destructive",
         title: "Required Field",
@@ -341,7 +353,7 @@ const MyBookings = () => {
       return;
     }
     
-    if (!disputeData[booking.id]?.description || disputeData[booking.id].description.trim() === '') {
+    if (!disputeInfo.description || disputeInfo.description.trim() === '') {
       toast({
         variant: "destructive",
         title: "Required Field",
@@ -356,10 +368,10 @@ const MyBookings = () => {
       // Create form data for file upload
       const formData = new FormData();
       formData.append('booking_id', booking.id);
-      formData.append('reason', disputeData[booking.id].reason);
-      formData.append('description', disputeData[booking.id].description);
+      formData.append('reason', disputeReason);
+      formData.append('description', disputeInfo.description);
       
-      if (disputeData[booking.id].evidence) {
+      if (disputeData[booking.id]?.evidence) {
         formData.append('evidence', disputeData[booking.id].evidence);
       }
       
@@ -619,15 +631,16 @@ const MyBookings = () => {
             </div>
             <div className="mb-3">
               <label className="block text-sm font-medium mb-1">Your Feedback:</label>
-              <Textarea
-                ref={el => reviewTextareaRefs.current[booking.id] = el}
-                value={reviewData[booking.id]?.comment || ''}
-                onChange={(e) => handleCommentChange(booking.id, e)}
-                placeholder="Share your experience with this service..."
-                rows={3}
-                disabled={submittingReview === booking.id}
-                className="w-full p-2 border border-blue-200 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              />
+              <Textarea 
+  ref={el => reviewTextareaRefs.current[booking.id] = el}
+  defaultValue=""
+  onChange={(e) => handleCommentChange(booking.id, e)}
+  placeholder="Share your experience with this service..." 
+  rows={3} 
+  disabled={submittingReview === booking.id}
+  className="w-full p-2 border border-blue-200 rounded-md focus:ring-blue-500 focus:border-blue-500"
+/>
+
             </div>
             <div className="flex justify-end gap-2">
               <Button
@@ -689,7 +702,7 @@ const MyBookings = () => {
               <label className="block text-sm font-medium mb-1">Description:</label>
               <Textarea
                 ref={el => disputeTextareaRefs.current[booking.id] = el}
-                value={disputeData[booking.id]?.description || ''}
+                defaultValue=""
                 onChange={(e) => handleDisputeDescriptionChange(booking.id, e)}
                 placeholder="Please provide details about your dispute..."
                 rows={4}

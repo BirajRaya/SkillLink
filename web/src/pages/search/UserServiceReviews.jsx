@@ -511,16 +511,7 @@ const UserServiceReviews = ({ serviceId, reviews: initialReviews, onReviewUpdate
                     Reviews {reviews.length ? `(${reviews.length})` : ''}
                 </h2>
                 
-                {/* Only show login button for non-authenticated users */}
-                {!isAuthenticated && !showReviewForm && (
-                    <Button 
-                        onClick={handleNonLoggedInReview}
-                        className="flex items-center bg-blue-600 hover:bg-blue-700"
-                    >
-                        <LogIn className="h-4 w-4 mr-2" />
-                        Login to Review
-                    </Button>
-                )}
+       
             </div>
             
             {/* Notification for logged-in users to direct them to My Bookings tab */}
@@ -725,15 +716,6 @@ const UserServiceReviews = ({ serviceId, reviews: initialReviews, onReviewUpdate
                                 tab
                             </p>
                         </div>
-                    )}
-                    {!isAuthenticated && (
-                        <Button
-                            onClick={handleNonLoggedInReview}
-                            className="mt-4 flex items-center mx-auto bg-blue-600 hover:bg-blue-700"
-                        >
-                            <LogIn className="h-4 w-4 mr-2" />
-                            Login to Write a Review
-                        </Button>
                     )}
                 </div>
             )}

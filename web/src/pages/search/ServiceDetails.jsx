@@ -36,12 +36,6 @@ const ServiceDetails = () => {
     const [bookingLoading, setBookingLoading] = useState(false);
     const [showBookingDetails, setShowBookingDetails] = useState(false); // Initially hidden
     const [showSuccessMessage, setShowSuccessMessage] = useState(false); // Success message visibility
-    const [serviceAvailability, setServiceAvailability] = useState({
-        isAvailable: true,
-        booking: null,
-        loading: false,
-        error: null
-    });
 
     // Check if the URL contains an action parameter to show booking form
     useEffect(() => {
@@ -51,35 +45,6 @@ const ServiceDetails = () => {
             setShowBookingForm(true);
         }
     }, [location]);
-
-    // Check service availability
-    const checkServiceAvailability = async () => {
-        if (!id || !isAuthenticated) return;
-        
-        try {
-            setServiceAvailability(prev => ({ ...prev, loading: true, error: null }));
-            console.log(`Checking availability for service ${id}`);
-            
-            const response = await api.get(`/bookings/service/${id}/availability`);
-            
-            if (response.data) {
-                console.log(`Service ${id} availability status: ${response.data.isAvailable ? 'Available' : 'Unavailable'}`);
-                setServiceAvailability({
-                    isAvailable: response.data.isAvailable,
-                    booking: response.data.booking,
-                    loading: false,
-                    error: null
-                });
-            }
-        } catch (error) {
-            console.error('Error checking service availability:', error);
-            setServiceAvailability(prev => ({
-                ...prev,
-                loading: false,
-                error: 'Unable to check service availability'
-            }));
-        }
-    };
 
     // Check localStorage for existing booking on initial render
     useEffect(() => {
@@ -108,7 +73,7 @@ const ServiceDetails = () => {
         }
     }, [id]);
 
-    // Fetch service details, check for existing booking, and verify service availability
+    // Fetch service details and check for existing booking
     useEffect(() => {
         const fetchServiceDetails = async () => {
             try {
@@ -119,9 +84,6 @@ const ServiceDetails = () => {
                 const serviceResponse = await api.get(`/services/${id}`);
                 if (serviceResponse.data) {
                     setService(serviceResponse.data);
-                    
-                    // Check service availability
-                    await checkServiceAvailability();
                     
                     // If user is authenticated, check for existing bookings for this service
                     if (isAuthenticated && currentUser) {
@@ -144,12 +106,7 @@ const ServiceDetails = () => {
                                 localStorage.removeItem(`booking_service_${id}`);
                             }
                             
-                            // NEW CODE: Fetch all user's bookings for this service (for review eligibility)
-                            const userBookingsResponse = await api.get(`/bookings/user/${currentUser.id}/service/${id}`);
-                            if (userBookingsResponse.data && userBookingsResponse.data.bookings) {
-                                setUserBookings(userBookingsResponse.data.bookings);
-                                console.log("User bookings for this service:", userBookingsResponse.data.bookings);
-                            }
+                    
                         } catch (bookingError) {
                             console.error('Error checking for bookings:', bookingError);
                         } finally {
@@ -216,8 +173,7 @@ const ServiceDetails = () => {
             setShowSuccessMessage(false);
         }, 5000);
         
-        // Refresh service availability & update user bookings
-        checkServiceAvailability();
+        // Update user bookings
         updateUserBookings();
     };
 
@@ -243,8 +199,7 @@ const ServiceDetails = () => {
             setShowSuccessMessage(false);
         }, 5000);
         
-        // Refresh service availability & update user bookings
-        checkServiceAvailability();
+        // Update user bookings
         updateUserBookings();
     };
 
@@ -258,8 +213,7 @@ const ServiceDetails = () => {
             timestamp: new Date().toISOString()
         }));
         
-        // Refresh service availability & update user bookings
-        checkServiceAvailability();
+        // Update user bookings
         updateUserBookings();
     };
 
@@ -394,8 +348,17 @@ const ServiceDetails = () => {
                                     </div>
                                     
                                     {/* Book Now / View Booking / Review Button */}
-                                    {bookingLoading || serviceAvailability.loading ? (
+                                    {bookingLoading ? (
                                         <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent"></div>
+                                    ) : !isAuthenticated ? (
+                                        /* If user is not authenticated, always show Book Now button that redirects to login */
+                                        <Button 
+                                            className="bg-blue-600 hover:bg-blue-700 text-lg py-4 px-8 w-full md:w-auto transition-all duration-200 ease-in-out transform hover:scale-105"
+                                            onClick={() => navigate('/login', { state: { from: `/services/${id}` } })}
+                                        >
+                                            <Calendar className="mr-2 h-5 w-5" />
+                                            Book Now
+                                        </Button>
                                     ) : hasActiveBooking ? (
                                         <Button 
                                             className={`bg-green-600 hover:bg-green-700 text-lg py-4 px-8 w-full md:w-auto transition-all duration-200 ease-in-out transform hover:scale-105 flex items-center ${showBookingDetails ? 'bg-green-700' : 'bg-green-600'}`}
@@ -422,40 +385,18 @@ const ServiceDetails = () => {
                                                 <Star className="mr-2 h-5 w-5" fill="white" />
                                                 Leave a Review
                                             </Button>
-                                            {!serviceAvailability.isAvailable ? null : (
-                                                <Button 
-                                                    className="bg-blue-600 hover:bg-blue-700 text-lg py-4 px-8"
-                                                    onClick={() => {
-                                                        if (isAuthenticated) {
-                                                            setShowBookingForm(!showBookingForm);
-                                                        } else {
-                                                            navigate('/login', { state: { from: `/services/${id}` } });
-                                                        }
-                                                    }}
-                                                >
-                                                    <Calendar className="mr-2 h-5 w-5" />
-                                                    Book Again
-                                                </Button>
-                                            )}
+                                            <Button 
+                                                className="bg-blue-600 hover:bg-blue-700 text-lg py-4 px-8"
+                                                onClick={() => setShowBookingForm(!showBookingForm)}
+                                            >
+                                                <Calendar className="mr-2 h-5 w-5" />
+                                                Book Again
+                                            </Button>
                                         </div>
-                                    ) : !serviceAvailability.isAvailable ? (
-                                        <Button 
-                                            className="bg-gray-400 text-lg py-4 px-8 w-full md:w-auto cursor-not-allowed"
-                                            disabled={true}
-                                        >
-                                            <Ban className="mr-2 h-5 w-5" />
-                                            Currently Unavailable
-                                        </Button>
                                     ) : (
                                         <Button 
                                             className="bg-blue-600 hover:bg-blue-700 text-lg py-4 px-8 w-full md:w-auto transition-all duration-200 ease-in-out transform hover:scale-105"
-                                            onClick={() => {
-                                                if (isAuthenticated) {
-                                                    setShowBookingForm(!showBookingForm);
-                                                } else {
-                                                    navigate('/login', { state: { from: `/services/${id}` } });
-                                                }
-                                            }}
+                                            onClick={() => setShowBookingForm(!showBookingForm)}
                                         >
                                             <Calendar className="mr-2 h-5 w-5" />
                                             {showBookingForm ? 'Hide Booking Form' : 'Book Now'}
@@ -465,23 +406,6 @@ const ServiceDetails = () => {
                             </div>
                         </div>
                         
-                        {/* Service Unavailability Message */}
-                        {!serviceAvailability.isAvailable && !hasActiveBooking && (
-                            <div className="mb-6 bg-amber-50 border border-amber-200 rounded-xl p-6">
-                                <div className="flex items-start space-x-4">
-                                    <AlertCircle className="h-6 w-6 text-amber-600 mt-1" />
-                                    <div>
-                                        <h3 className="text-lg font-semibold text-amber-800">
-                                            This service is currently booked
-                                        </h3>
-                                        <p className="text-amber-700 mt-1">
-                                            The service provider has accepted another booking. This service will become available
-                                            again once the current booking is completed or cancelled.
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
                         
                         {/* Success Message */}
                         {showSuccessMessage && (
@@ -503,7 +427,7 @@ const ServiceDetails = () => {
                         )}
 
                         {/* Book Now Form */}
-                        {showBookingForm && !hasActiveBooking && serviceAvailability.isAvailable && (
+                        {showBookingForm && !hasActiveBooking && isAuthenticated && (
                             <div className="mb-10">
                                 <BookingForm 
                                     service={service} 

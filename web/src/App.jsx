@@ -14,6 +14,8 @@ import { AuthProvider, useAuth } from './utils/AuthContext';
 import ServiceDetails from './pages/search/ServiceDetails';
 import MyBookings from './pages/users/MyBookings';
 import BookingDetailPage from './pages/bookings/BookingDetailPage';
+import About_us from './pages/landing_page/about_us';
+import Contact_page from './pages/landing_page/contact_page';
 
 // Protected Route Component - Ensures only authenticated users with proper roles can access specific routes
 const ProtectedRoute = ({ children, requiredRole }) => {
@@ -77,6 +79,8 @@ const AppWithAuth = () => {
 
           <Route path="/search" element={<SearchResults />} />
           <Route path="/services/:id" element={<ServiceDetails />} />
+          <Route path="/about" element={<About_us />} />
+          <Route path="/contact" element={<Contact_page />} />
           
           {/* Consolidated booking routes with ProtectedRoute */}
           <Route path="/bookings" element={

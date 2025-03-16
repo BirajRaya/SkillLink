@@ -24,7 +24,7 @@ import {
   DialogFooter
 } from "@/components/ui/dialog";
 import api from '@/lib/api';
-import { useAuth } from "../../utils/AuthContext"; // Import auth context
+import { useAuth } from "../../utils/AuthContext"; 
 
 const BookingDetails = ({ booking, onCancelBooking }) => {
   const navigate = useNavigate();
