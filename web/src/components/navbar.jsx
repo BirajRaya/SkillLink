@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useAuth } from '../utils/AuthContext'; // Update this path if needed
+import { useAuth } from '../utils/AuthContext';
 import axios from "axios";
 import { Home } from "lucide-react";
 
@@ -33,6 +33,7 @@ const Navbar = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [errors, setErrors] = useState({});
   const [profileData, setProfileData] = useState({
     fullName: '',
     email: '',
@@ -103,9 +104,17 @@ const Navbar = () => {
       return;
     }
 
-    if (profileData.fullName.length < 5) {
-      setError("Full Name must be 6 charaacter long");
-      return;
+    // if (profileData.fullName.length < 5) {
+    //   setError("Full Name must be 6 charaacter long");
+    //   return;
+    // }
+
+    if (id === "address") {
+      if (!value.trim()) {
+        newErrors.address = "Address is required";
+      } else {
+        delete newErrors.address;
+      }
     }
 
     try {
@@ -290,7 +299,16 @@ const Navbar = () => {
                   placeholder="Your full name"
                   pattern="[A-Za-z\s]+"
                   required
+                  onBlur={() => {
+                    if (profileData.fullName.length < 5) {
+                      setErrors({ ...errors, fullName: "Full Name must be 6 charaacter long" });
+                      return;
+                    }else{
+                      setErrors({...errors, fullName:''})
+                    }
+                  }}
                 />
+                {errors.fullName && <p className="mt-1 text-xs text-red-500">{errors.fullName}</p>}
               </div>
             </div>
 
@@ -305,7 +323,7 @@ const Navbar = () => {
                   onChange={handleProfileChange}
                   className="pl-10 bg-gray-100 cursor-not-allowed"
                   placeholder="Your email address"
-                  readonly
+                  readOnly
                 />
               </div>
             </div>
@@ -322,7 +340,16 @@ const Navbar = () => {
                   placeholder="Your phone number"
                   pattern="\d{10}"
                   required
-                />
+                  onBlur={() => {
+                    if (profileData.phone.length < 10) {
+                      setErrors({ ...errors, phone: "Phone Number Should be 10 Numbers Only" });
+                      return;
+                    }else{
+                      setErrors({...errors, phone:''})
+                    }
+                  }}
+                />{errors.phone && <p className="mt-1 text-xs text-red-500">{errors.phone}</p>}
+
               </div>
             </div>
 
@@ -337,7 +364,15 @@ const Navbar = () => {
                   className="pl-10"
                   placeholder="Your address"
                   required
-                />
+                  onBlur={() => {
+                    if (profileData.address.length < 10) {
+                      setErrors({ ...errors, address: "address Should be minimun 10 words" });
+                      return;
+                    }else{
+                      setErrors({...errors, address:''})
+                    }
+                  }}
+                />{errors.address && <p className="mt-1 text-xs text-red-500">{errors.address}</p>}
               </div>
             </div>
 
@@ -355,7 +390,16 @@ const Navbar = () => {
                     onChange={handleProfileChange}
                     className="pl-10"
                     placeholder="Enter current password"
-                  />
+                    onBlur={() => {
+                      if (profileData.currentPassword.length < 7) {
+                        setErrors({ ...errors, currentPassword: "Current Password Should be minimun 7 character" });
+                        return;
+                      }else{
+                        setErrors({...errors, currentPassword:''})
+                      }
+                    }}
+                    
+                  />{errors.currentPassword && <p className="mt-1 text-xs text-red-500">{errors.currentPassword}</p>}
                   <button
                     type="button"
                     onClick={() => setShowPassword(prev => ({ ...prev, currentPassword: !prev.currentPassword }))}
@@ -379,7 +423,15 @@ const Navbar = () => {
                     className="pl-10"
                     placeholder="Enter new password (Min 7 char)"
                     minLength={7}
-                  />
+                    onBlur={() => {
+                      if (profileData.newPassword.length < 7) {
+                        setErrors({ ...errors, newPassword: "New Password Should be minimun 7 character" });
+                        return;
+                      }else{
+                        setErrors({...errors, newPassword:''})
+                      }
+                    }}
+                  />{errors.newPassword && <p className="mt-1 text-xs text-red-500">{errors.newPassword}</p>}
                   <button
                     type="button"
                     onClick={() => setShowPassword(prev => ({ ...prev, newPassword: !prev.newPassword }))}
@@ -402,7 +454,15 @@ const Navbar = () => {
                     className="pl-10"
                     placeholder="Confirm new password (Min 7 char)"
                     minLength={7}
-                  />
+                    onBlur={() => {
+                      if (profileData.confirmPassword.length < 7) {
+                        setErrors({ ...errors, confirmPassword: "Current Password Should be minimun 7 character" });
+                        return;
+                      }else{
+                        setErrors({...errors, confirmPassword:''})
+                      }
+                    }}
+                  />{errors.newPassword && <p className="mt-1 text-xs text-red-500">{errors.newPassword}</p>}
                   <button
                     type="button"
                     onClick={() => setShowPassword(prev => ({ ...prev, confirmPassword: !prev.confirmPassword }))}

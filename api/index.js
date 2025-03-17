@@ -15,6 +15,7 @@ const vendorRoutes = require('./src/routes/vendorRoutes');
 const chatRoutes = require('./src/routes/chatRoutes');
 
 const bookingRoutes = require('./src/routes/bookingRoutes');
+const disputeRoutes = require('./src/routes/disputeRoutes');
 
 // Create the Express App
 const app = express();
@@ -43,6 +44,7 @@ app.use("/services", serviceRoutes);
 app.use("/vendors" , vendorRoutes);
 app.use("/chat", chatRoutes);
 app.use("/bookings", bookingRoutes);
+app.use("/disputes", disputeRoutes);
 
 // Global error handling middleware
 app.use((err, req, res, next) => {
