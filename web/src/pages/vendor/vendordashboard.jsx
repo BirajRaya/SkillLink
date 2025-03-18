@@ -30,7 +30,6 @@ import ServicesTab from './tabs/ServicesTab';
 import BookingsTab from './tabs/BookingsTab';
 import MessagesTab from './tabs/MessagesTab';
 import StatsTab from './tabs/StatsTab';
-import ClientsTab from './tabs/ClientsTab';
 import SupportTab from './tabs/SupportTab';
 
 // UI components
@@ -99,26 +98,66 @@ const VendorDashboard = () => {
   });
 
   // Mock data for dashboard stats
-  const dashboardStats = {
-    totalBookings: 12,
-    pendingBookings: 3,
-    completedBookings: 8,
-    cancelledBookings: 1,
-    totalEarnings: 2450,
-    pendingPayments: 350,
-    averageRating: 4.8,
-    totalReviews: 7,
-    recentBookings: [
-      { id: 'BK1234', customer: 'Sarah Johnson', service: 'Plumbing Repair', date: '2023-06-12', status: 'completed', amount: 120 },
-      { id: 'BK1235', customer: 'Michael Brown', service: 'Electrical Installation', date: '2023-06-14', status: 'pending', amount: 250 },
-      { id: 'BK1236', customer: 'Emily Davis', service: 'Home Cleaning', date: '2023-06-18', status: 'pending', amount: 100 }
-    ],
-    popularServices: [
-      { service: 'Plumbing Repair', bookings: 5, earnings: 600 },
-      { service: 'Electrical Installation', bookings: 4, earnings: 1000 },
-      { service: 'Home Cleaning', bookings: 3, earnings: 300 }
-    ]
-  };
+  const [dashboardStats, setDashboardStats] = useState({
+    totalBookings: 0,
+    totalEarnings: 0,
+    bookingsChangePercent: 0,
+    earningsChangePercent: 0,
+    averageRating: "0.0",
+    totalReviews: 0,
+    pendingBookings: 0,
+    recentBookings: [],
+    popularServices: []
+  });
+
+  // New state for service insights
+  const [serviceInsights, setServiceInsights] = useState({
+    mostBooked: null,
+    highestRated: null,
+    mostProfitable: null
+  });
+
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    const fetchDashboardStats = async () => {
+      try {
+        setLoading(true);
+
+        const response = await axios.get(`http://localhost:5000/vendors/dashboard-stats/${currentUser.id}`);
+        console.log('currentuser stats:', currentUser.id);
+        console.log('Dashboard stats:', response.data);
+        if (response.data && response.data.success) {
+          setDashboardStats(response.data.dashboardStats);
+        }
+      } catch (error) {
+        console.error('Error fetching dashboard stats:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if ((activeTab === "dashboard" || activeTab === "stats") && currentUser.id) {
+      fetchDashboardStats();
+    }
+  }, [activeTab, currentUser.id]);
+
+  // New effect for service insights
+  useEffect(() => {
+    const fetchServiceInsights = async () => {
+      try {
+        const response = await axios.get(`http://localhost:5000/vendors/service-insights/${currentUser.id}`);
+        if (response.data && response.data.success) {
+          setServiceInsights(response.data.serviceInsights);
+        }
+      } catch (error) {
+        console.error('Error fetching service insights:', error);
+      }
+    };
+
+    if (activeTab === "services" && currentUser.id) {
+      fetchServiceInsights();
+    }
+  }, [activeTab, currentUser.id]);
 
   useEffect(() => {
     // Check if user has filled availability form before
@@ -396,6 +435,8 @@ const VendorDashboard = () => {
         return (
           <ServicesTab
             setShowNewServiceDialog={setShowNewServiceDialog}
+            serviceInsights={serviceInsights} 
+            formatCurrency={formatCurrency} 
             {...commonProps}
           />
         );
@@ -405,8 +446,6 @@ const VendorDashboard = () => {
         return <MessagesTab />;
       case "stats":
         return <StatsTab {...commonProps} />;
-      case "clients":
-        return <ClientsTab />;
       case "support":
         return <SupportTab />;
       default:
@@ -428,7 +467,7 @@ const VendorDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col">
+    <div className="bg-gray-100 flex flex-col">
       {/* Dashboard Header with Profile Actions */}
       <Header
         currentUser={currentUser}
