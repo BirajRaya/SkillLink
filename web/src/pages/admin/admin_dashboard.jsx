@@ -5,7 +5,6 @@ import Dashboard from './Dashboard';
 import Users from './Users';
 import Vendors from './Vendors';
 import Disputes from './Disputes';
-import Analytics from './Analytics';
 import Categories from './categories';
 import Services from './Services';
 import ChatApp from '@/chat/ChatApp';
@@ -26,8 +25,6 @@ const AdminDashboard = () => {
       return <Services />;
     }else if (currentPath === '/admin-dashboard/disputes') {
       return <Disputes />;
-    } else if (currentPath === '/admin-dashboard/analytics') {
-      return <Analytics />;
     }else if (currentPath === '/admin-dashboard/chat') {
       return <ChatApp />;
     } else {

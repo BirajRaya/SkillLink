@@ -47,11 +47,6 @@ const SupportTab = () => {
               </div>
             </div>
           </CardContent>
-          <CardFooter>
-            <Button className="w-full">
-              Contact Support
-            </Button>
-          </CardFooter>
         </Card>
         
         <Card>
@@ -90,11 +85,7 @@ const SupportTab = () => {
               </div>
             </div>
           </CardContent>
-          <CardFooter>
-            <Button variant="outline" className="w-full">
-              View Help Center
-            </Button>
-          </CardFooter>
+  
         </Card>
       </div>
     </div>
