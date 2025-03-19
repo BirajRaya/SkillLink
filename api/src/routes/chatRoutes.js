@@ -3,45 +3,102 @@ const pool = require('../config/db');
 const router = express.Router();
 const redis = require("redis");
 
-// const redisClient = redis.createClient(); // Default localhost:6379
-// const redisClient = redis.createClient({
-//     socket: {
-//       host: "localhost", 
-//       port: 6379,
-//     },
-//   });
+// Connect to Redis - we'll still use it for unread counts, just not for contact caching
+const redisClient = redis.createClient({
+    socket: {
+      host: "localhost", 
+      port: 6379,
+    },
+});
 
-// redisClient.on("error", (err) => console.error("Redis Error:", err));
+redisClient.on("error", (err) => console.error("Redis Error:", err));
+redisClient.on("connect", () => console.log("Redis Connected Successfully in Chat Routes!"));
 
-// (async () => {
-//     try {
-//       await redisClient.connect();
-//       console.log("Redis Connected Successfully!");
-//     } catch (err) {
-//       console.error("Redis Connection Error:", err);
-//     }
-//   })();
+(async () => {
+    try {
+      await redisClient.connect();
+      console.log("Redis Connection Established in Chat Routes!");
+    } catch (err) {
+      console.error("Redis Connection Error in Chat Routes:", err);
+    }
+})();
 
-// console.log('hello it is redis' + redisClient);
+// Get unread message counts for a user
+router.get("/unreadMessages/:userId", async (req, res) => {
+    const { userId } = req.params;
+    
+    try {
+        // Get unread messages from Redis
+        const unreadKey = `unread:${userId}`;
+        const unreadCounts = await redisClient.hGetAll(unreadKey);
+        
+        console.log(`Unread counts for user ${userId}:`, unreadCounts);
+        res.json(unreadCounts || {});
+    } catch (error) {
+        console.error("Error fetching unread counts:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
 
+// Get total unread messages count for a user
+router.get("/totalUnreadMessages/:userId", async (req, res) => {
+    const { userId } = req.params;
+    
+    try {
+        // Get unread messages from Redis
+        const unreadKey = `unread:${userId}`;
+        const unreadCounts = await redisClient.hGetAll(unreadKey);
+        
+        // Calculate total unread messages
+        let totalUnread = 0;
+        for (const contactId in unreadCounts) {
+            totalUnread += parseInt(unreadCounts[contactId] || 0);
+        }
+        
+        console.log(`Total unread messages for user ${userId}: ${totalUnread}`);
+        res.json({ total: totalUnread });
+    } catch (error) {
+        console.error("Error calculating total unread messages:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Mark messages as read
+router.post("/markAsRead", async (req, res) => {
+    const { userId, contactId } = req.body;
+    
+    try {
+        // Clear unread count in Redis
+        const unreadKey = `unread:${userId}`;
+        await redisClient.hDel(unreadKey, contactId);
+        
+        console.log(`Marked messages from ${contactId} as read for user ${userId}`);
+        res.json({ success: true });
+    } catch (error) {
+        console.error("Error marking messages as read:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
 
 router.get("/getChat/:user1/:user2", async (req, res) => {
     const { user1, user2 } = req.params;
     const cacheKey = `chat:${user1}:${user2}`;
-    const cacheKey2 = `chat:${user2}:${user1}`
-
+    const cacheKey2 = `chat:${user2}:${user1}`;
 
     try {  
+        const cachedMessages = await redisClient.get(cacheKey);
 
-        // const cachedMessages = await redisClient.get(cacheKey);
+        if (cachedMessages) {
+            console.log("Cache Hit! Serving messages from Redis...");
+            
+            // Mark messages as read when fetching chat
+            const unreadKey = `unread:${user1}`;
+            await redisClient.hDel(unreadKey, user2);
+            
+            return res.json(JSON.parse(cachedMessages));
+        }   
 
-        // if (cachedMessages) {
-        //     console.log("Cache Hit! Serving data from Redis...");
-        //     // console.log(cachedMessages);
-        //     return res.json(JSON.parse(cachedMessages));
-        // }   
-
-        console.log("Cache Miss! Fetching data from PostgreSQL...");
+        console.log("Cache Miss! Fetching messages from PostgreSQL...");
 
         // Find existing chat
         let chat = await pool.query(
@@ -61,9 +118,13 @@ router.get("/getChat/:user1/:user2", async (req, res) => {
             [chatId]
         );
 
-        //store data in redis cache for one hour
-        // await redisClient.setEx(cacheKey, 3600, JSON.stringify(messages.rows));
-        // await redisClient.setEx(cacheKey2, 3600, JSON.stringify(messages.rows));
+        // Store data in redis cache for one hour
+        await redisClient.setEx(cacheKey, 3600, JSON.stringify(messages.rows));
+        await redisClient.setEx(cacheKey2, 3600, JSON.stringify(messages.rows));
+
+        // Mark messages as read when fetching chat
+        const unreadKey = `unread:${user1}`;
+        await redisClient.hDel(unreadKey, user2);
 
         res.json(messages.rows);
     } catch (error) {
@@ -74,38 +135,66 @@ router.get("/getChat/:user1/:user2", async (req, res) => {
 
 router.get("/contacts/:userId", async (req, res) => {
     const { userId } = req.params;
-    try {  
+    try {
+      // Optimized SQL query - this query should be faster without Redis caching
       const query = `
-       SELECT DISTINCT u.id, u.full_name AS name, u.profile_picture AS avatar,
-    (
-        SELECT message FROM messages 
-        WHERE chat_id = c.id 
-        ORDER BY created_at DESC 
+      SELECT DISTINCT 
+        u.id, 
+        u.full_name AS name, 
+        u.profile_picture AS avatar,
+        m.message as lastmessage,
+        m.created_at as lastmessagetime
+      FROM users u
+      JOIN chats c ON c.user1_id = u.id OR c.user2_id = u.id
+      LEFT JOIN LATERAL (
+        SELECT message, created_at
+        FROM messages
+        WHERE chat_id = c.id
+        ORDER BY created_at DESC
         LIMIT 1
-    ) AS lastMessage
-FROM users u
-JOIN chats c ON c.user1_id = u.id OR c.user2_id = u.id
-WHERE (c.user1_id = $1 OR c.user2_id = $1) 
-AND u.id != $1
-ORDER BY lastMessage DESC NULLS LAST;
+      ) m ON true
+      WHERE (c.user1_id = $1 OR c.user2_id = $1) 
+        AND u.id != $1
+      ORDER BY m.created_at DESC NULLS LAST;
       `;
   
+      console.time("Database Query - Contacts");
       const { rows } = await pool.query(query, [userId]);
-      res.json(rows);
+      console.timeEnd("Database Query - Contacts");
+      
+      // Get unread messages from Redis
+      const unreadKey = `unread:${userId}`;
+      const unreadCounts = await redisClient.hGetAll(unreadKey);
+      
+      console.log(`Unread counts for contacts of user ${userId}:`, unreadCounts);
+      
+      // Add unread count to each contact
+      const contactsWithUnreadCounts = rows.map(contact => {
+        // Make sure to convert to number - Redis returns strings
+        const unreadcount = parseInt(unreadCounts[contact.id] || 0);
+        
+        return {
+          ...contact,
+          unreadcount
+        };
+      });
+      
+      res.json(contactsWithUnreadCounts);
     } catch (error) {
-      console.error(error);
+      console.error("Error in contacts route:", error);
       res.status(500).json({ error: "Server error" });
     }
-  });
+});
   
-  // Search users
-  router.get("/search", async (req, res) => {
+// Search users
+router.get("/search", async (req, res) => {
     try {
       const { query, userId } = req.query; // userId to exclude self
       const searchQuery = `
         SELECT id, full_name AS name, profile_picture AS avatar
         FROM users
         WHERE full_name ILIKE $1 AND id != $2
+        And role = 'vendor'
         LIMIT 10;
       `;
   
@@ -115,13 +204,12 @@ ORDER BY lastMessage DESC NULLS LAST;
       console.error(error);
       res.status(500).json({ error: "Server error" });
     }
-  });
+});
 
 router.post("/saveChat", async (req, res) => {
     const { sender_id, receiver_id, message } = req.body;
     const cacheKey = `chat:${sender_id}:${receiver_id}`;
-    const cacheKey2 = `chat:${receiver_id}:${sender_id}`
-
+    const cacheKey2 = `chat:${receiver_id}:${sender_id}`;
 
     try {
         let chat = await pool.query(
@@ -164,14 +252,27 @@ router.post("/saveChat", async (req, res) => {
         //     await redisClient.setEx(cacheKey, 3600, JSON.stringify(messages));
         //     await redisClient.setEx(cacheKey2, 3600, JSON.stringify(messages));
         // } else {
+        // Note: We're NOT incrementing unread count here.
+        // That's handled by Socket.io to avoid double-counting.
+        
+        // Update message cache
+        const cachedMessages = await redisClient.get(cacheKey);
+
+        if (cachedMessages) {
+            let messages = JSON.parse(cachedMessages);
+            messages.push(newMessageData);
+            await redisClient.setEx(cacheKey, 3600, JSON.stringify(messages));
+            await redisClient.setEx(cacheKey2, 3600, JSON.stringify(messages));
+        } else {
             const messages = await pool.query(
                 `SELECT sender_id, message, created_at 
                  FROM messages WHERE chat_id = $1 ORDER BY created_at ASC`,
                 [chatId]
             );
-            // await redisClient.setEx(cacheKey, 3600, JSON.stringify(messages.rows));
-            // await redisClient.setEx(cacheKey2, 3600, JSON.stringify(messages));
-        // }
+            await redisClient.setEx(cacheKey, 3600, JSON.stringify(messages.rows));
+            await redisClient.setEx(cacheKey2, 3600, JSON.stringify(messages.rows));
+        }
+        
         res.json({ success: true });
     } catch (error) {
         res.status(500).json({ error: error.message });

@@ -857,16 +857,7 @@ const MyBookings = () => {
           </span>
         )}
         
-        {/* Message to Vendor button */}
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-1 border-blue-300 text-blue-700 hover:bg-blue-50"
-          onClick={() => handleMessageVendor(booking)}
-        >
-          <MessageSquare className="h-4 w-4" />
-          Message Vendor
-        </Button>
+
         
         {/* Dispute button */}
         {!showDisputeForm && (

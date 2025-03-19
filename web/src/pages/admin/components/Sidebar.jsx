@@ -1,5 +1,6 @@
+import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import {LayoutDashboard,Users,Building2,AlertCircle,Calendar,Star,BarChart,Settings,LogOut,ChartBarStacked,User,HandPlatter,Mails} from 'lucide-react';
+import {LayoutDashboard,Users,Building2,AlertCircle,BarChart,Settings,LogOut,ChartBarStacked,User,HandPlatter,Mails, Calendar, Star} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
@@ -11,6 +12,10 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "../../../utils/AuthContext";
+import api from '@/lib/api';
+import { io } from "socket.io-client";
+
+const socket = io("http://localhost:5000");
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/admin-dashboard' },
@@ -19,15 +24,58 @@ const navItems = [
   { icon: Calendar, label: 'Bookings', path: '/admin-dashboard/bookings' },
   { icon: Star, label: 'Reviews', path: '/admin-dashboard/reviews' },
   { icon: AlertCircle, label: 'Disputes', path: '/admin-dashboard/disputes' },
-  { icon: BarChart, label: 'Analytics', path: '/admin-dashboard/analytics' },
   { icon: ChartBarStacked, label: 'Categories', path: '/admin-dashboard/categories' },
   { icon: HandPlatter, label: 'Services', path: '/admin-dashboard/services' },
   { icon: Mails, label: 'Messages', path: '/admin-dashboard/chat' },
 ];
 
 const Sidebar = () => {
-  const { logout } = useAuth();
+  const { logout, currentUser } = useAuth();
   const location = useLocation();
+  const [totalUnreadMessages, setTotalUnreadMessages] = useState(0);
+
+  useEffect(() => {
+    if (!currentUser?.id) return;
+
+    // Join the chat room
+    socket.emit("joinChat", currentUser.id);
+
+    // Function to fetch total unread messages
+    const fetchTotalUnreadMessages = async () => {
+      try {
+        const response = await api.get(`http://localhost:5000/chat/unreadMessages/${currentUser.id}`);
+        const unreadCounts = response.data;
+        
+        // Calculate total by summing all unread counts
+        const total = Object.values(unreadCounts).reduce((sum, count) => sum + parseInt(count || 0), 0);
+        setTotalUnreadMessages(total);
+      } catch (error) {
+        console.error('Error fetching unread message counts:', error);
+      }
+    };
+
+    // Initial fetch
+    fetchTotalUnreadMessages();
+
+    // Listen for new messages to update the count
+    socket.on("receiveMessage", () => {
+      fetchTotalUnreadMessages();
+    });
+
+    // Listen for messages marked as read
+    socket.on("messagesMarkedAsRead", () => {
+      fetchTotalUnreadMessages();
+    });
+
+    // Refresh the count periodically
+    const interval = setInterval(fetchTotalUnreadMessages, 60000); // Every minute
+
+    return () => {
+      socket.off("receiveMessage");
+      socket.off("messagesMarkedAsRead");
+      clearInterval(interval);
+    };
+  }, [currentUser]);
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -172,6 +220,13 @@ const Sidebar = () => {
                           location.pathname === path ? "text-primary" : "text-gray-500 group-hover:text-primary"
                         )} />
                         <span className="text-sm">{label}</span>
+                        
+                        {/* Add badge for unread messages in the Messages menu item */}
+                        {label === "Messages" && totalUnreadMessages > 0 && (
+                          <Badge variant="destructive" className="text-xs h-4 min-w-4 px-1">
+                            {totalUnreadMessages > 99 ? "99+" : totalUnreadMessages}
+                          </Badge>
+                        )}
                       </div>
                       {location.pathname === path && (
                         <div className="w-1 h-5 bg-primary rounded-full" />

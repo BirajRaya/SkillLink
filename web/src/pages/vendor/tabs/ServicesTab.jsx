@@ -1,4 +1,5 @@
 import { Plus, Briefcase, Edit, Trash2, Search, PlusCircle } from "lucide-react";
+import PropTypes from 'prop-types';
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -7,7 +8,7 @@ import api from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { Label } from "@/components/ui/label";
 
-const ServicesTab = ({ setShowNewServiceDialog }) => {
+const ServicesTab = ({ setShowNewServiceDialog , serviceInsights, formatCurrency }) => {
   // State Management for services data
 
   const { toast } = useToast();
@@ -758,41 +759,139 @@ const ServicesTab = ({ setShowNewServiceDialog }) => {
         </Tabs>
       </div>
       
-      <div className="bg-white rounded-lg shadow-md p-6 mt-6">
-        <h3 className="text-lg font-semibold mb-4">Service Insights</h3>
-        <p className="text-gray-600 mb-6">
-          See how your services are performing
-        </p>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Most Booked</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-lg font-semibold">No data yet</div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Highest Rated</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-lg font-semibold">No data yet</div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Most Profitable</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-lg font-semibold">No data yet</div>
-            </CardContent>
-          </Card>
+        <div className="bg-white rounded-xl shadow-lg p-8 mt-8">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+        <div>
+          <h3 className="text-2xl font-bold text-gray-800">Service Insights</h3>
+          <p className="text-gray-500 mt-1">Track your top-performing services</p>
+        </div>
+        <div className="mt-4 md:mt-0">
+          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-50 text-blue-700">
+            <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+              <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+              <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+            </svg>
+            Live data
+          </span>
         </div>
       </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Most Booked Service */}
+        <Card className="overflow-hidden border-0 shadow-md hover:shadow-lg transition-shadow duration-300">
+          <CardHeader className="pb-2 bg-gradient-to-r from-blue-50 to-blue-100 border-b">
+            <CardTitle className="text-sm font-semibold text-blue-700 flex items-center">
+              <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                <path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 7a1 1 0 10-2 0v1h-1a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1V7z" />
+              </svg>
+              Most Booked
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-4">
+            {serviceInsights?.mostBooked ? (
+              <div>
+                <div className="relative mb-3 h-24 rounded-lg overflow-hidden">
+                  <img 
+                    src={serviceInsights.mostBooked.image_url} 
+                    alt="Most Booked" 
+                    className="w-full h-full object-cover" 
+                  />
+                  <div className="absolute bottom-0 right-0 bg-blue-600 text-white px-2 py-1 text-xs font-bold rounded-tl-lg">
+                    {serviceInsights.mostBooked.booking_count} bookings
+                  </div>
+                </div>
+                <h4 className="text-lg font-bold text-gray-800 truncate">{serviceInsights.mostBooked.name}</h4>
+                <p className="text-sm text-gray-500 mt-1">Popular choice among customers</p>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-40 text-center">
+                <svg className="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-gray-400 mt-2">No booking data yet</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Highest Rated Service */}
+        <Card className="overflow-hidden border-0 shadow-md hover:shadow-lg transition-shadow duration-300">
+          <CardHeader className="pb-2 bg-gradient-to-r from-yellow-50 to-yellow-100 border-b">
+            <CardTitle className="text-sm font-semibold text-yellow-700 flex items-center">
+              <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+              </svg>
+              Highest Rated
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-4">
+            {serviceInsights?.highestRated ? (
+              <div>
+                <div className="relative mb-3 h-24 rounded-lg overflow-hidden">
+                  <img 
+                    src={serviceInsights.highestRated.image_url} 
+                    alt="Highest Rated" 
+                    className="w-full h-full object-cover" 
+                  />
+                  <div className="absolute bottom-0 right-0 bg-yellow-600 text-white px-2 py-1 text-xs font-bold rounded-tl-lg">
+                    {Number(serviceInsights.highestRated.average_rating || 0).toFixed(1)} ⭐
+                  </div>
+                </div>
+                <h4 className="text-lg font-bold text-gray-800 truncate">{serviceInsights.highestRated.name}</h4>
+                <p className="text-sm text-gray-500 mt-1">
+                  {serviceInsights.highestRated.review_count} customer reviews
+                </p>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-40 text-center">
+                <svg className="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                </svg>
+                <p className="text-gray-400 mt-2">No rating data yet</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Most Profitable Service */}
+        <Card className="overflow-hidden border-0 shadow-md hover:shadow-lg transition-shadow duration-300">
+          <CardHeader className="pb-2 bg-gradient-to-r from-green-50 to-green-100 border-b">
+            <CardTitle className="text-sm font-semibold text-green-700 flex items-center">
+              <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                <path fillRule="evenodd" d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+              </svg>
+              Most Profitable
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-4">
+            {serviceInsights?.mostProfitable ? (
+              <div>
+                <div className="relative mb-3 h-24 rounded-lg overflow-hidden">
+                  <img 
+                    src={serviceInsights.mostProfitable.image_url} 
+                    alt="Most Profitable" 
+                    className="w-full h-full object-cover" 
+                  />
+                  <div className="absolute bottom-0 right-0 bg-green-600 text-white px-2 py-1 text-xs font-bold rounded-tl-lg">
+                    {formatCurrency ? formatCurrency(serviceInsights.mostProfitable.total_revenue) : `$${serviceInsights.mostProfitable.total_revenue}`}
+                  </div>
+                </div>
+                <h4 className="text-lg font-bold text-gray-800 truncate">{serviceInsights.mostProfitable.name}</h4>
+                <p className="text-sm text-gray-500 mt-1">Highest revenue generator</p>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-40 text-center">
+                <svg className="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-gray-400 mt-2">No revenue data yet</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+
        {(isAddServiceModalOpen || isEditServiceModalOpen) && (
               <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-0 m-0">
                 <div className="bg-white rounded-lg p-6 shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
@@ -1289,6 +1388,28 @@ const ServicesTab = ({ setShowNewServiceDialog }) => {
             )}
     </div>
   );
+};
+ServicesTab.propTypes = {
+  setShowNewServiceDialog: PropTypes.func.isRequired,
+  serviceInsights: PropTypes.shape({
+    mostBooked: PropTypes.shape({
+      name: PropTypes.string,
+      booking_count: PropTypes.number,
+      image_url: PropTypes.string,
+    }),
+    highestRated: PropTypes.shape({
+      name: PropTypes.string,
+      average_rating: PropTypes.number,
+      review_count: PropTypes.number,
+      image_url: PropTypes.string,
+    }),
+    mostProfitable: PropTypes.shape({
+      name: PropTypes.string,
+      total_revenue: PropTypes.number,
+      image_url: PropTypes.string,
+    }),
+  }),
+  formatCurrency: PropTypes.func.isRequired,
 };
 
 export default ServicesTab;

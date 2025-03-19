@@ -10,9 +10,87 @@ import {
     HelpCircle 
   } from "lucide-react";
   import { Button } from "@/components/ui/button";
+  import { Badge } from "@/components/ui/badge";
+  import { useEffect, useState } from 'react';
+  import api from '@/lib/api';
+  import { io } from "socket.io-client";
+  import { useAuth } from "../../../utils/AuthContext";
+
+  const socket = io("http://localhost:5000");
 
   // eslint-disable-next-line react/prop-types
   const Sidebar = ({ activeTab, setActiveTab, sidebarOpen, availabilityData }) => {
+    const [totalUnreadMessages, setTotalUnreadMessages] = useState(0);
+    const { currentUser } = useAuth();
+    
+    useEffect(() => {
+      // Get vendor ID from context
+      const vendorId = currentUser?.id;
+      
+      if (!vendorId) return;
+      
+      // Join the chat room
+      socket.emit("joinChat", vendorId);
+      
+      // Function to fetch total unread messages
+      const fetchTotalUnreadMessages = async () => {
+        try {
+          const response = await api.get(`http://localhost:5000/chat/unreadMessages/${vendorId}`);
+          const unreadCounts = response.data;
+          
+          // Calculate total by summing all unread counts
+          const total = Object.values(unreadCounts).reduce((sum, count) => sum + parseInt(count || 0), 0);
+          setTotalUnreadMessages(total);
+        } catch (error) {
+          console.error('Error fetching unread message counts:', error);
+        }
+      };
+      
+      // Initial fetch
+      fetchTotalUnreadMessages();
+      
+      // Listen for new messages to update the count
+      socket.on("receiveMessage", () => {
+        fetchTotalUnreadMessages();
+      });
+      
+      // Listen for messages marked as read
+      socket.on("messagesMarkedAsRead", () => {
+        fetchTotalUnreadMessages();
+      });
+      
+      // Refresh the count periodically
+      const interval = setInterval(fetchTotalUnreadMessages, 60000); // Every minute
+      
+      return () => {
+        socket.off("receiveMessage");
+        socket.off("messagesMarkedAsRead");
+        clearInterval(interval);
+      };
+    }, [currentUser]);
+
+    // Function to mark messages as read
+    const handleMessagesClick = async () => {
+      setActiveTab("messages");
+      
+      if (totalUnreadMessages > 0 && currentUser?.id) {
+        try {
+          // Call API to mark messages as read
+          await api.post(`http://localhost:5000/chat/markAllAsRead`, {
+            userId: currentUser.id
+          });
+          
+          // Update local state
+          setTotalUnreadMessages(0);
+          
+          // Emit event to update other clients
+          socket.emit("markMessagesAsRead", currentUser.id);
+        } catch (error) {
+          console.error("Error marking messages as read:", error);
+        }
+      }
+    };
+
     return (
       <div className={`bg-white w-64 shadow-lg flex-shrink-0 transition-all duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} fixed md:static h-screen z-20`}>
         <div className="p-4 space-y-6 h-full flex flex-col">
@@ -61,18 +139,15 @@ import {
             <Button 
               variant={activeTab === "messages" ? "default" : "ghost"} 
               className="w-full justify-start"
-              onClick={() => setActiveTab("messages")}
+              onClick={handleMessagesClick}
             >
               <MessageSquare className="mr-2 h-5 w-5" />
               Messages
-            </Button>
-            <Button 
-              variant={activeTab === "clients" ? "default" : "ghost"} 
-              className="w-full justify-start"
-              onClick={() => setActiveTab("clients")}
-            >
-              <Users className="mr-2 h-5 w-5" />
-              Clients
+              {totalUnreadMessages > 0 && (
+                <Badge variant="destructive" className="ml-auto text-xs h-5 min-w-5 px-1">
+                  {totalUnreadMessages > 99 ? "99+" : totalUnreadMessages}
+                </Badge>
+              )}
             </Button>
           </div>
           
