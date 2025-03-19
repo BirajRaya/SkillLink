@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Briefcase, User, LogOut, Settings, Mail, Phone, Lock, Save, X, Eye, EyeOff, Loader2, Calendar } from "lucide-react";
+import { Briefcase, User, LogOut, Settings, Mail, Phone, Lock, Save, X, Eye, EyeOff, Loader2, Calendar, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -188,8 +188,8 @@ const Navbar = () => {
               ))}
             </div>
 
-                        {/* Buttons or User Profile */}
-                        <div className="flex items-center space-x-4">
+            {/* Buttons or User Profile */}
+            <div className="flex items-center space-x-4">
               {isAuthenticated ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -212,12 +212,19 @@ const Navbar = () => {
                       <User className="mr-2 h-4 w-4" />
                       <span>Update Profile</span>
                     </DropdownMenuItem>
-                    <DropdownMenuItem 
+                    <DropdownMenuItem
                       className="flex items-center"
                       onClick={() => navigate('/bookings')}
                     >
                       <Calendar className="mr-2 h-4 w-4" />
                       <span>My Bookings</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="flex items-center"
+                      onClick={() => navigate('/dispute')}
+                    >
+                      <AlertCircle className="mr-2 h-4 w-4" />
+                      <span>Disputes</span>
                     </DropdownMenuItem>
                     <DropdownMenuItem className="flex items-center">
                       <Settings className="mr-2 h-4 w-4" />
@@ -303,8 +310,8 @@ const Navbar = () => {
                     if (profileData.fullName.length < 5) {
                       setErrors({ ...errors, fullName: "Full Name must be 6 charaacter long" });
                       return;
-                    }else{
-                      setErrors({...errors, fullName:''})
+                    } else {
+                      setErrors({ ...errors, fullName: '' })
                     }
                   }}
                 />
@@ -344,8 +351,8 @@ const Navbar = () => {
                     if (profileData.phone.length < 10) {
                       setErrors({ ...errors, phone: "Phone Number Should be 10 Numbers Only" });
                       return;
-                    }else{
-                      setErrors({...errors, phone:''})
+                    } else {
+                      setErrors({ ...errors, phone: '' })
                     }
                   }}
                 />{errors.phone && <p className="mt-1 text-xs text-red-500">{errors.phone}</p>}
@@ -368,8 +375,8 @@ const Navbar = () => {
                     if (profileData.address.length < 10) {
                       setErrors({ ...errors, address: "address Should be minimun 10 words" });
                       return;
-                    }else{
-                      setErrors({...errors, address:''})
+                    } else {
+                      setErrors({ ...errors, address: '' })
                     }
                   }}
                 />{errors.address && <p className="mt-1 text-xs text-red-500">{errors.address}</p>}
@@ -394,11 +401,11 @@ const Navbar = () => {
                       if (profileData.currentPassword.length < 7) {
                         setErrors({ ...errors, currentPassword: "Current Password Should be minimun 7 character" });
                         return;
-                      }else{
-                        setErrors({...errors, currentPassword:''})
+                      } else {
+                        setErrors({ ...errors, currentPassword: '' })
                       }
                     }}
-                    
+
                   />{errors.currentPassword && <p className="mt-1 text-xs text-red-500">{errors.currentPassword}</p>}
                   <button
                     type="button"
@@ -427,8 +434,8 @@ const Navbar = () => {
                       if (profileData.newPassword.length < 7) {
                         setErrors({ ...errors, newPassword: "New Password Should be minimun 7 character" });
                         return;
-                      }else{
-                        setErrors({...errors, newPassword:''})
+                      } else {
+                        setErrors({ ...errors, newPassword: '' })
                       }
                     }}
                   />{errors.newPassword && <p className="mt-1 text-xs text-red-500">{errors.newPassword}</p>}
@@ -458,8 +465,8 @@ const Navbar = () => {
                       if (profileData.confirmPassword.length < 7) {
                         setErrors({ ...errors, confirmPassword: "Current Password Should be minimun 7 character" });
                         return;
-                      }else{
-                        setErrors({...errors, confirmPassword:''})
+                      } else {
+                        setErrors({ ...errors, confirmPassword: '' })
                       }
                     }}
                   />{errors.newPassword && <p className="mt-1 text-xs text-red-500">{errors.newPassword}</p>}
