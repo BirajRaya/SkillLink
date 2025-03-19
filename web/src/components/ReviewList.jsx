@@ -24,7 +24,6 @@ const ReviewList = ({ serviceId }) => {
             setReviews(response.data);
             setError(null);
         } catch (err) {
-            console.error('Error fetching reviews:', err);
             setError('Failed to load reviews');
             toast({
                 title: "Error",

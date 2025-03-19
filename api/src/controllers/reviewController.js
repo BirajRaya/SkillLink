@@ -86,7 +86,6 @@ const getServiceReviews = async (req, res) => {
 
         res.json(result.rows);
     } catch (error) {
-        console.error('Error fetching reviews:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 };

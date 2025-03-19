@@ -98,7 +98,7 @@ const BookingsList = () => {
         setBookings(processedBookings || []);
       }
     } catch (err) {
-      console.error(`[${getCurrentTimestamp()}] Error fetching bookings:`, err);
+      
       setError('Failed to load bookings. Please try again.');
       
       toast({
