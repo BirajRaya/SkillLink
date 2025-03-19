@@ -153,58 +153,106 @@ const Disputes = () => {
         </div>
       </div>
       <div className="bg-white shadow overflow-hidden rounded-lg">
+  <div className="overflow-x-auto">
+    <table className="min-w-full divide-y divide-gray-200">
+      <thead className="bg-gray-50">
+        <tr>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Evidence</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User Name</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vendor Name</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service Name</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+        </tr>
+      </thead>
+      <tbody className="bg-white divide-y divide-gray-200">
         {isLoading ? (
-          <div className="text-center py-8">
-            <p>Loading disputes...</p>
-          </div>
+          <tr>
+            <td colSpan="9" className="text-center py-8">
+              <div className="flex justify-center items-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                <span className="ml-2">Loading disputes...</span>
+              </div>
+            </td>
+          </tr>
         ) : filteredDisputes.length === 0 ? (
-          <div className="text-center py-8">
-            <p>No disputes found</p>
-          </div>
+          <tr>
+            <td colSpan="9" className="text-center py-8">
+              <div className="flex flex-col items-center justify-center text-gray-500">
+                <svg className="h-12 w-12 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                </svg>
+                <p className="text-lg font-medium">No disputes found</p>
+                <p className="text-sm mt-1">
+                  {searchTerm ? "Try adjusting your search terms" : "No disputes available currently"}
+                </p>
+              </div>
+            </td>
+          </tr>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left">Evidence</th>
-                  <th className="px-6 py-3 text-left">User Name</th>
-                  <th className="px-6 py-3 text-left">Vendor Name</th>
-                  <th className="px-6 py-3 text-left">Service Name</th>
-                  <th className="px-6 py-3 text-left">Reason</th>
-                  <th className="px-6 py-3 text-left">Description</th>
-                  <th className="px-6 py-3 text-left">Date</th>
-                  <th className="px-6 py-3 text-left">Status</th>
-                  <th className="px-6 py-3 text-left">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredDisputes.map((dispute) => (
-                  <tr key={dispute.id}>
-                    <td className="px-6 py-4">
-                      {dispute.evidence && <img src={
+          filteredDisputes.map((dispute) => (
+            <tr key={dispute.id} className="hover:bg-gray-50 transition-colors duration-150">
+              <td className="px-6 py-4">
+                <div className="flex-shrink-0 h-16 w-16">
+                  {dispute.evidence ? (
+                    <img 
+                      src={
                         dispute.evidence.startsWith("data:image")
                           ? dispute.evidence // Base64 image
                           : `http://localhost:5000/${dispute.evidence}` // URL-based image
-                      } alt="Evidence" className="h-10 w-10 object-cover" />}
-                    </td>
-                    <td className="px-6 py-4">{dispute.user_name || 'N/A'}</td>
-                    <td className="px-6 py-4">{dispute.vendor_name || 'N/A'}</td>
-                    <td className="px-6 py-4">{dispute.service_name || 'N/A'}</td>
-                    <td className="px-6 py-4">{dispute.reason}</td>
-                    <td className="px-6 py-4">{dispute.description}</td>
-                    <td className="px-6 py-4">{dispute.created_at ? new Date(dispute.created_at).toLocaleDateString() : 'N/A'}</td>
-                    <td className="px-6 py-4">{dispute.status}</td>
-                    <td className="px-6 py-4 flex space-x-2">
-                      <button onClick={() => handleOpenModal(dispute)}><Edit className="h-5 w-5 text-blue-500" /></button>
-                      <button onClick={() => handleDeleteDispute(dispute.id)}><Trash2 className="h-5 w-5 text-red-500" /></button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                      }
+                      alt="Evidence"
+                      className="h-16 w-16 rounded-md object-cover border border-gray-200 shadow-sm"
+                    />
+                  ) : (
+                    <div className="h-16 w-16 rounded-md bg-blue-100 flex items-center justify-center">
+                      <span className="text-blue-500 text-lg font-semibold">?</span>
+                    </div>
+                  )}
+                </div>
+              </td>
+              <td className="px-6 py-4 text-sm font-medium text-gray-900">{dispute.user_name || 'N/A'}</td>
+              <td className="px-6 py-4 text-sm text-gray-900">{dispute.vendor_name || 'N/A'}</td>
+              <td className="px-6 py-4 text-sm text-gray-900">{dispute.service_name || 'N/A'}</td>
+              <td className="px-6 py-4 text-sm text-gray-900">{dispute.reason}</td>
+              <td className="px-6 py-4 text-sm text-gray-900" title={dispute.description}>{dispute.description}</td>
+              <td className="px-6 py-4 text-sm text-gray-500">{dispute.created_at ? new Date(dispute.created_at).toLocaleDateString() : 'N/A'}</td>
+              <td className="px-6 py-4">
+                <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                  dispute.status.toLowerCase() === 'accept' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                }`}>
+                  {dispute.status.toUpperCase()}
+                </span>
+              </td>
+              <td className="px-6 py-4">
+                <div className="flex space-x-2">
+                  <button 
+                    className="text-blue-500 hover:text-blue-700 transition-colors duration-150"
+                    onClick={() => handleOpenModal(dispute)}
+                    title="Edit Dispute"
+                  >
+                    <Edit className="h-5 w-5" />
+                  </button>
+                  <button 
+                    className="text-red-500 hover:text-red-700 transition-colors duration-150"
+                    onClick={() => handleDeleteDispute(dispute.id)}
+                    title="Delete Dispute"
+                  >
+                    <Trash2 className="h-5 w-5" />
+                  </button>
+                </div>
+              </td>
+            </tr>
+          ))
         )}
-      </div>
+      </tbody>
+    </table>
+  </div>
+</div>
+
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
           <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-lg">
