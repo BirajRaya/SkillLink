@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import ContactList from "./ContactList";
-// import ChatWindow from "./ChatWindow";
+import ChatWindow from "./ChatWindow";
 import { useAuth } from '../utils/AuthContext';
 import { io } from "socket.io-client";
 
@@ -70,7 +70,7 @@ export default function ChatApp() {
         <ContactList userId={currentUser.id} onSelect={setSelectedUser} />
       </div>
 
-      {/* <div className="w-2/3 md:w-3/4">
+      <div className="w-2/3 md:w-3/4">
         {selectedUser ? (
           <ChatWindow senderId={currentUser.id} receiver={selectedUser} />
         ) : (
@@ -78,7 +78,7 @@ export default function ChatApp() {
             Select a contact to start chatting
           </div>
         )}
-      </div> */}
+      </div>
     </div>
   );
 }

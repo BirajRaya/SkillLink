@@ -60,15 +60,13 @@ const MyBookings = () => {
   const disputeTextareaRefs = useRef({});
   const disputeRefs = useRef({}); 
   const itemsPerPage = 5;
-  const getCurrentTimestamp = () => {
-    return new Date().toISOString().replace('T', ' ').slice(0, 19);
-  };
   const { currentUser } = useAuth(); // Get current user from auth context
 
 
 
   useEffect(() => {
     fetchBookings();
+    console.log(currentUser,"user")
   }, [currentPage]);
 
   const fetchBookings = async () => {
@@ -85,7 +83,6 @@ const MyBookings = () => {
       });
       
       if (response.data && response.data.bookings) {
-        console.log(`[${getCurrentTimestamp()}] Received ${response.data.bookings.length} bookings`);
         setBookings(response.data.bookings);
         
         // Calculate total pages based on bookings length if total isn't provided
@@ -140,8 +137,6 @@ const MyBookings = () => {
       
       setReviewStatus(reviewStatusObj);
       
-      // Debug to check what values are being set
-      console.log(`[${getCurrentTimestamp()}] Review status after check:`, reviewStatusObj);
     } catch (error) {
       console.error("Error checking review status:", error);
     }
@@ -349,7 +344,6 @@ const MyBookings = () => {
         comment: reviewDataRef.current[booking.id]?.comment || ''
       };
       
-      console.log(`[${getCurrentTimestamp()}] Submitting review for booking ${booking.id}:`, reviewPayload);
       
       const response = await api.post(`/services/${booking.service_id}/reviews`, reviewPayload);
       
@@ -375,7 +369,7 @@ const MyBookings = () => {
         });
       }
     } catch (error) {
-      console.error(`[${getCurrentTimestamp()}] Error submitting review:`, error);
+   
       toast({
         variant: "destructive",
         title: "Error",
@@ -435,11 +429,14 @@ const MyBookings = () => {
         'description': disputeData[booking.id].description,
         'evidence': disputeData[booking.id].evidence ? disputeData[booking.id].evidence : null,
         'user_id': currentUser.id,
-        'feedback':""
+        'feedback':"",
+        'user_name': currentUser.fullName,
+        'vendor_name': booking.vendor_name,
+        'service_name': booking.service_name
+
       }
 
-      console.log(`[${getCurrentTimestamp()}] Submitting dispute for booking ${booking.id}`);
-      
+    
       const response = await api.post('/disputes/create', disputeFormData);
       
       if (response.data && response.data.status === 'success') {
@@ -461,7 +458,6 @@ const MyBookings = () => {
         });
       }
     } catch (error) {
-      console.error(`[${getCurrentTimestamp()}] Error submitting dispute:`, error);
       toast({
         variant: "destructive",
         title: "Error",
@@ -528,7 +524,6 @@ const MyBookings = () => {
         localStorage.setItem('booking_prefill', JSON.stringify(bookingData));
       }
     } else {
-      console.error(`[${getCurrentTimestamp()}] Cannot book service: Missing service_id`);
       toast({
         variant: "destructive",
         title: "Error",
@@ -611,8 +606,6 @@ const MyBookings = () => {
     });
   };
 
-  // Add debug logging to help diagnose the issue
-  console.log(`[${getCurrentTimestamp()}] Rendering MyBookings component with ${bookings.length} bookings`);
 
   // Star Rating Component
   const StarRating = ({ rating, onChange, disabled = false }) => {
@@ -650,8 +643,7 @@ const MyBookings = () => {
     const hasReview = reviewStatus[booking.id];
     const showReviewForm = reviewForms[booking.id];
     const showDisputeForm = disputeForms[booking.id];
-    
-    console.log(`[${getCurrentTimestamp()}] Booking ${booking.id} status: ${status}, Has Review: ${hasReview}, Show Form: ${showReviewForm}`);
+  
     
     return (
       <div className="bg-white border rounded-lg shadow-sm p-4 mb-4">

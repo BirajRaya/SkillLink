@@ -19,15 +19,15 @@ const upload = multer({ storage: storage });
 router.post("/create", async (req, res) => {
     try {
         console.log(req.body);
-        const { user_id, booking_id, reason, description , feedback} = req.body; // Ensure `user_id` is sent
+        const { user_id, booking_id, reason, description , feedback, user_name, vendor_name, service_name} = req.body; // Ensure `user_id` is sent
         const evidencePath = req.body.evidence ? req.body.evidence : null; // Store file path if uploaded  
         console.log(evidencePath);
 
         // Insert into database
         const newDispute = await pool.query(
-            `INSERT INTO dispute (user_id, booking_id, reason, description, evidence, feedback) 
-             VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-            [user_id, booking_id, reason, description, evidencePath, feedback]
+            `INSERT INTO dispute (user_id, booking_id, reason, description, evidence, feedback, user_name, vendor_name, service_name) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+            [user_id, booking_id, reason, description, evidencePath, feedback, user_name, vendor_name, service_name]
         );
 
         res.status(201).json({ status: "success", dispute: newDispute.rows[0] });
@@ -85,7 +85,7 @@ router.get("/user", async (req, res) => {
 
         
 
-        
+    
 
         res.json({
             disputes: disputes.rows,

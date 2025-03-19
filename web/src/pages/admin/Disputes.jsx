@@ -15,7 +15,7 @@ const Disputes = () => {
   const [evidence, setEvidence] = useState(null);
   const [feedback, setFeedback] = useState("");
   const [errors, setErrors] = useState({});
-      const { currentUser } = useAuth(); // Get current user from auth context
+  const { currentUser } = useAuth(); // Get current user from auth context
   
 
   // Fetch disputes data when component mounts
@@ -26,13 +26,13 @@ const Disputes = () => {
   const fetchDisputes = async () => {
     try {
       setIsLoading(true);
-      const response = await api.get("/disputes/user",{
-        params:{
-          user_id:currentUser.id,
-isAdmin:true
+      const response = await api.get("/disputes/user", {
+        params: {
+          user_id: currentUser.id,
+          isAdmin: true,
+          include_details: true // Add this parameter to request additional details
         }
       });
-
 
       setDisputes(response.data.disputes);
     } catch (error) {
@@ -51,7 +51,6 @@ isAdmin:true
       setStatus(dispute.status || "pending");
       setEvidence(null);
       setIsModalOpen(true);
-      
     }
   };
 
@@ -129,8 +128,11 @@ isAdmin:true
   
   // Filter disputes based on search term
   const filteredDisputes = disputes.filter(dispute =>
-    dispute.reason.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    dispute.description.toLowerCase().includes(searchTerm.toLowerCase())
+    dispute.reason?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    dispute.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    dispute.user_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    dispute.vendor_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    dispute.service_name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -148,7 +150,6 @@ isAdmin:true
             />
             <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
           </div>
-         
         </div>
       </div>
       <div className="bg-white shadow overflow-hidden rounded-lg">
@@ -161,37 +162,47 @@ isAdmin:true
             <p>No disputes found</p>
           </div>
         ) : (
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left">Reason</th>
-                <th className="px-6 py-3 text-left">Description</th>
-                <th className="px-6 py-3 text-left">Status</th>
-                <th className="px-6 py-3 text-left">Evidence</th>
-                <th className="px-6 py-3 text-left">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredDisputes.map((dispute) => (
-                <tr key={dispute.id}>
-                  <td className="px-6 py-4">{dispute.reason}</td>
-                  <td className="px-6 py-4">{dispute.description}</td>
-                  <td className="px-6 py-4">{dispute.status}</td>
-                  <td className="px-6 py-4">
-                    {dispute.evidence && <img src={
-                      dispute.evidence.startsWith("data:image")
-                        ? dispute.evidence // Base64 image
-                        : `http://localhost:5000/${dispute.evidence}` // URL-based image
-                    } alt="Evidence" className="h-10 w-10 object-cover" />}
-                  </td>
-                  <td className="px-6 py-4 flex space-x-2">
-                    <button onClick={() => handleOpenModal(dispute)}><Edit className="h-5 w-5 text-blue-500" /></button>
-                    <button onClick={() => handleDeleteDispute(dispute.id)}><Trash2 className="h-5 w-5 text-red-500" /></button>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left">Evidence</th>
+                  <th className="px-6 py-3 text-left">User Name</th>
+                  <th className="px-6 py-3 text-left">Vendor Name</th>
+                  <th className="px-6 py-3 text-left">Service Name</th>
+                  <th className="px-6 py-3 text-left">Reason</th>
+                  <th className="px-6 py-3 text-left">Description</th>
+                  <th className="px-6 py-3 text-left">Date</th>
+                  <th className="px-6 py-3 text-left">Status</th>
+                  <th className="px-6 py-3 text-left">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredDisputes.map((dispute) => (
+                  <tr key={dispute.id}>
+                    <td className="px-6 py-4">
+                      {dispute.evidence && <img src={
+                        dispute.evidence.startsWith("data:image")
+                          ? dispute.evidence // Base64 image
+                          : `http://localhost:5000/${dispute.evidence}` // URL-based image
+                      } alt="Evidence" className="h-10 w-10 object-cover" />}
+                    </td>
+                    <td className="px-6 py-4">{dispute.user_name || 'N/A'}</td>
+                    <td className="px-6 py-4">{dispute.vendor_name || 'N/A'}</td>
+                    <td className="px-6 py-4">{dispute.service_name || 'N/A'}</td>
+                    <td className="px-6 py-4">{dispute.reason}</td>
+                    <td className="px-6 py-4">{dispute.description}</td>
+                    <td className="px-6 py-4">{dispute.created_at ? new Date(dispute.created_at).toLocaleDateString() : 'N/A'}</td>
+                    <td className="px-6 py-4">{dispute.status}</td>
+                    <td className="px-6 py-4 flex space-x-2">
+                      <button onClick={() => handleOpenModal(dispute)}><Edit className="h-5 w-5 text-blue-500" /></button>
+                      <button onClick={() => handleDeleteDispute(dispute.id)}><Trash2 className="h-5 w-5 text-red-500" /></button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
       {isModalOpen && (
@@ -219,11 +230,7 @@ isAdmin:true
               ></textarea>
               {errors.description && <p className="text-red-500 text-sm mt-1">{errors.description}</p>}
             </div>
-            <select className="w-full p-2 border rounded mb-4" value={status} onChange={(e) => {
-             
-              setStatus(e.target.value)
-            }
-            }>
+            <select className="w-full p-2 border rounded mb-4" value={status} onChange={(e) => setStatus(e.target.value)}>
               <option value="pending">Pending</option>
               <option value="accept">Accept</option>
               <option value="reject">Reject</option>

@@ -237,21 +237,8 @@ router.post("/saveChat", async (req, res) => {
             [chatId, sender_id, message]
         );
 
-        // const newMessageData = newMessage.rows[0];
+        const newMessageData = newMessage.rows[0];
 
-        // const cachedMessages = await redisClient.get(cacheKey);
-        // console.log(cacheKey);
-
-        // if (cachedMessages) {
-        //     let messages = JSON.parse(cachedMessages);
-
-        //     messages.push(newMessageData);
-
-        //     // console.log('helo' + JSON.stringify(messages));
-
-        //     await redisClient.setEx(cacheKey, 3600, JSON.stringify(messages));
-        //     await redisClient.setEx(cacheKey2, 3600, JSON.stringify(messages));
-        // } else {
         // Note: We're NOT incrementing unread count here.
         // That's handled by Socket.io to avoid double-counting.
         
