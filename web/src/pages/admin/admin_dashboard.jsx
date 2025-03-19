@@ -8,6 +8,8 @@ import Disputes from './Disputes';
 import Categories from './categories';
 import Services from './Services';
 import ChatApp from '@/chat/ChatApp';
+import Bookings from './Bookings';
+import Reviews from './Reviews';
 
 const AdminDashboard = () => {
   const location = useLocation();
@@ -23,10 +25,15 @@ const AdminDashboard = () => {
       return <Categories />;
     } else if (currentPath === '/admin-dashboard/services') {  
       return <Services />;
-    }else if (currentPath === '/admin-dashboard/disputes') {
+    } else if (currentPath === '/admin-dashboard/disputes') {
       return <Disputes />;
     }else if (currentPath === '/admin-dashboard/chat') {
       return <ChatApp />;
+    }
+     else if (currentPath === '/admin-dashboard/bookings') {
+      return <Bookings />;
+    } else if (currentPath === '/admin-dashboard/reviews') {
+      return <Reviews />;
     } else {
       return <Dashboard />;
     }

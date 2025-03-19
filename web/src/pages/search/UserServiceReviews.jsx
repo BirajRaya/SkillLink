@@ -9,16 +9,20 @@ import {
     Trash,
     AlertCircle,
     AlertTriangle,
+    ArrowUpDown,
     LogIn,
     Lock
 } from "lucide-react";
+import { 
+    DropdownMenu, 
+    DropdownMenuContent, 
+    DropdownMenuItem, 
+    DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import api from '@/lib/api';
 import { useAuth } from '@/utils/AuthContext';
 
-import MyBookings from '../users/MyBookings';
-
-// Added bookings prop to receive booking information
 const UserServiceReviews = ({ serviceId, reviews: initialReviews, onReviewUpdate, bookings }) => {
     const navigate = useNavigate();
     const { toast } = useToast();
@@ -34,13 +38,11 @@ const UserServiceReviews = ({ serviceId, reviews: initialReviews, onReviewUpdate
     const [isEditing, setIsEditing] = useState(false);
     const [reviewMessage, setReviewMessage] = useState({ type: '', text: '' });
     const [reviews, setReviews] = useState(initialReviews || []);
-    // Add booking state
     const [hasCompletedBooking, setHasCompletedBooking] = useState(false);
-    
+    const [sortOption, setSortOption] = useState('recent');
 
     const safelySetItem = (key, value) => {
         try {
-            // Only store minimal data to avoid quota issues
             const minimalValue = JSON.stringify({
                 id: value.id,
                 rating: value.rating,
@@ -68,32 +70,18 @@ const UserServiceReviews = ({ serviceId, reviews: initialReviews, onReviewUpdate
         }
     };
     
-    // Debug auth state
-    useEffect(() => {
-        console.log("Auth state:", { 
-            isAuthenticated, 
-            currentUser, 
-            token: localStorage.getItem('token')
-        });
-    }, [isAuthenticated, currentUser]);
-    
     // Check if user has completed bookings
     useEffect(() => {
         if (isAuthenticated && currentUser && bookings && bookings.length > 0) {
-            // Check for completed bookings
             const completedBooking = bookings.some(booking => 
                 booking.status === 'completed' && 
                 booking.user_id === currentUser.id &&
                 booking.service_id === serviceId
             );
             
-            console.log("User has completed booking:", completedBooking);
             setHasCompletedBooking(completedBooking);
             
-            // If user has completed a booking and doesn't have a review yet,
-            // automatically show the review form
             if (completedBooking && !userReview && !showReviewForm) {
-                console.log("Auto-showing review form for completed booking");
                 setShowReviewForm(true);
             }
         } else {
@@ -104,21 +92,17 @@ const UserServiceReviews = ({ serviceId, reviews: initialReviews, onReviewUpdate
     // Check if user has already reviewed this service
     useEffect(() => {
         if (initialReviews && initialReviews.length > 0 && isAuthenticated && currentUser) {
-            console.log("Checking for existing review in:", initialReviews);
             setReviews(initialReviews);
             
-            // Check if current user has a review
             const existingReview = initialReviews.find(r => 
-                // Check if reviewer_id matches currentUser.id
                 (r.reviewer_id && currentUser.id && r.reviewer_id === currentUser.id) ||
-                // Check if reviewer_login matches user's email
-                (r.reviewer_login && currentUser.email && r.reviewer_login.toLowerCase() === currentUser.email.toLowerCase()) ||
-                // Check if reviewer_login matches username
-                (r.reviewer_login && currentUser.username && r.reviewer_login.toLowerCase() === currentUser.username.toLowerCase())
+                (r.reviewer_login && currentUser.email && 
+                 r.reviewer_login.toLowerCase() === currentUser.email.toLowerCase()) ||
+                (r.reviewer_login && currentUser.username && 
+                 r.reviewer_login.toLowerCase() === currentUser.username.toLowerCase())
             );
             
             if (existingReview) {
-                console.log("Found user review:", existingReview);
                 setUserReview(existingReview);
                 
                 try {
@@ -132,7 +116,6 @@ const UserServiceReviews = ({ serviceId, reviews: initialReviews, onReviewUpdate
                     comment: existingReview.comment || ''
                 });
             } else {
-                console.log("No existing review found for user:", currentUser?.username || currentUser?.email);
                 setUserReview(null);
             }
         } else if (!isAuthenticated || !currentUser) {
@@ -160,7 +143,6 @@ const UserServiceReviews = ({ serviceId, reviews: initialReviews, onReviewUpdate
             return;
         }
         
-        // Check if user has completed a booking
         if (!hasCompletedBooking) {
             toast({
                 title: "Action not allowed",
@@ -212,10 +194,54 @@ const UserServiceReviews = ({ serviceId, reviews: initialReviews, onReviewUpdate
         }));
     };
 
+    // Sorting function
+    const getSortedReviews = (reviews, sortOption, isAuthenticated, currentUser) => {
+        if (!reviews || reviews.length === 0) return [];
+        
+        const isUserReview = (reviewItem) => {
+            if (!isAuthenticated || !currentUser) return false;
+            
+            return (
+                (reviewItem.reviewer_id && currentUser.id && reviewItem.reviewer_id === currentUser.id) ||
+                (reviewItem.reviewer_login && currentUser.email && 
+                 reviewItem.reviewer_login.toLowerCase() === currentUser.email.toLowerCase()) ||
+                (reviewItem.reviewer_login && currentUser.username && 
+                 reviewItem.reviewer_login.toLowerCase() === currentUser.username.toLowerCase())
+            );
+        };
+
+        let sortedReviews = [...reviews];
+
+        switch (sortOption) {
+            case 'highest_rating':
+                sortedReviews.sort((a, b) => b.rating - a.rating);
+                break;
+            case 'lowest_rating':
+                sortedReviews.sort((a, b) => a.rating - b.rating);
+                break;
+            case 'recent':
+            default:
+                sortedReviews.sort((a, b) => {
+                    const dateA = new Date(a.updated_at || a.created_at);
+                    const dateB = new Date(b.updated_at || b.created_at);
+                    return dateB - dateA;
+                });
+                break;
+        }
+
+        if (isAuthenticated && currentUser) {
+            const userReviews = sortedReviews.filter(r => isUserReview(r));
+            const otherReviews = sortedReviews.filter(r => !isUserReview(r));
+            
+            return [...userReviews, ...otherReviews];
+        }
+
+        return sortedReviews;
+    };
+
     const handleSubmitReview = async (e) => {
         e.preventDefault();
         
-        // Check again if user has completed a booking
         if (!hasCompletedBooking && !isEditing) {
             setReviewMessage({
                 type: 'error',
@@ -223,20 +249,6 @@ const UserServiceReviews = ({ serviceId, reviews: initialReviews, onReviewUpdate
             });
             return;
         }
-        
-        // Debug auth state before submission
-        console.log("Submitting review - Auth state:", {
-            isAuthenticated,
-            currentUser: currentUser?.id ? { 
-                id: currentUser.id,
-                email: currentUser.email,
-                username: currentUser.username
-            } : null,
-            token: localStorage.getItem('token')?.substring(0, 20) + "..."
-        });
-
-        // Skip the auth check here, we already validate at the button/form level
-        // Users can only see the form if they're authenticated
         
         setSubmitting(true);
         
@@ -248,25 +260,13 @@ const UserServiceReviews = ({ serviceId, reviews: initialReviews, onReviewUpdate
                 comment: review.comment.trim()
             };
     
-            // Log the request before making it
-            console.log(`Making ${isEditing ? 'PUT' : 'POST'} request to:`, 
-                isEditing ? 
-                    `/services/${serviceId}/reviews/${userReview.id}` : 
-                    `/services/${serviceId}/reviews`
-            );
-            
             if (isEditing && userReview) {
-                // Update existing review
                 response = await api.put(`/services/${serviceId}/reviews/${userReview.id}`, reviewData);
             } else {
-                // Create new review
                 response = await api.post(`/services/${serviceId}/reviews`, reviewData);
             }
     
-            console.log("Review API response:", response.data);
-    
             if (response.data.status === 'success') {
-                // Show success message
                 setReviewMessage({
                     type: 'success',
                     text: isEditing 
@@ -274,29 +274,21 @@ const UserServiceReviews = ({ serviceId, reviews: initialReviews, onReviewUpdate
                         : 'Thank you! Your review has been submitted successfully!'
                 });
                 
-                // If creating a new review, store the new review data
                 if (!isEditing) {
-                    // Extract review data from response
                     const newReview = response.data.data?.review;
                     
                     if (newReview) {
-                        console.log("Created new review:", newReview);
-                        
-                        // Save to local state for immediate UI update
                         setUserReview(newReview);
                         
-                        // Try to save the review to localStorage (minimal version)
                         try {
                             safelySetItem(`user_review_${serviceId}`, newReview);
                         } catch (e) {
                             console.warn("Failed to save to localStorage:", e);
                         }
                         
-                        // Add to reviews list
                         setReviews(prev => [...prev, newReview]);
                     }
                 } else {
-                    // If updating, update the review in the list
                     const updatedReview = response.data.data?.review || {
                         ...userReview,
                         rating: review.rating,
@@ -306,7 +298,6 @@ const UserServiceReviews = ({ serviceId, reviews: initialReviews, onReviewUpdate
                     
                     setUserReview(updatedReview);
                     
-                    // Update in localStorage too
                     try {
                         safelySetItem(`user_review_${serviceId}`, updatedReview);
                     } catch (e) {
@@ -318,42 +309,32 @@ const UserServiceReviews = ({ serviceId, reviews: initialReviews, onReviewUpdate
                     );
                 }
     
-                // Notify parent component if needed
                 if (onReviewUpdate) {
                     onReviewUpdate();
                 }
     
-                // Close form after successful submission
                 setTimeout(() => {
                     setShowReviewForm(false);
                     clearMessages();
                 }, 1000);
             }
         } catch (error) {
-            // Enhanced error handling with more details
             console.error("Review submission error:", error);
             
-            // Check if it's an authentication error
             if (error.response?.status === 401) {
-                console.warn("Authentication error detected");
-                
-                // Check if token exists but might be invalid
                 const token = localStorage.getItem('token');
                 if (token) {
-                    // Show a more specific message
                     setReviewMessage({ 
                         type: 'error', 
                         text: 'Your session appears to have expired. Please refresh the page or login again.' 
                     });
                 } else {
-                    // No token found
                     setReviewMessage({ 
                         type: 'error', 
                         text: 'Authentication required. Please login to continue.' 
                     });
                 }
             } else {
-                // For other errors, show the actual error message
                 const errorMessage = error.response?.data?.message || 'Failed to submit review';
                 setReviewMessage({ type: 'error', text: errorMessage });
             }
@@ -377,14 +358,11 @@ const UserServiceReviews = ({ serviceId, reviews: initialReviews, onReviewUpdate
                 const response = await api.delete(`/services/${serviceId}/reviews/${userReview.id}`);
     
                 if (response.data.status === 'success') {
-                    // Remove the deleted review from reviews array
                     setReviews(prev => prev.filter(r => r.id !== userReview.id));
                     
-                    // Clear user review state
                     setUserReview(null);
                     setIsEditing(false);
                     
-                    // Also remove from localStorage
                     safelyRemoveItem(`user_review_${serviceId}`);
                     
                     if (onReviewUpdate) {
@@ -399,7 +377,6 @@ const UserServiceReviews = ({ serviceId, reviews: initialReviews, onReviewUpdate
             } catch (error) {
                 console.error('Error deleting review:', error);
                 
-                // Check if it's an authentication error
                 if (error.response?.status === 401) {
                     toast({
                         title: "Session Expired",
@@ -424,7 +401,6 @@ const UserServiceReviews = ({ serviceId, reviews: initialReviews, onReviewUpdate
         try {
             const date = new Date(dateString);
             
-            // Format as YYYY-MM-DD HH:MM:SS
             const year = date.getFullYear();
             const month = String(date.getMonth() + 1).padStart(2, '0');
             const day = String(date.getDate()).padStart(2, '0');
@@ -442,14 +418,10 @@ const UserServiceReviews = ({ serviceId, reviews: initialReviews, onReviewUpdate
     const isUserReview = (reviewItem) => {
         if (!isAuthenticated || !currentUser) return false;
         
-        // More precise comparison with type safety and case insensitivity
         return (
-            // Check if IDs match
             (reviewItem.reviewer_id && currentUser.id && reviewItem.reviewer_id === currentUser.id) ||
-            // Check if emails match (case insensitive)
             (reviewItem.reviewer_login && currentUser.email && 
              reviewItem.reviewer_login.toLowerCase() === currentUser.email.toLowerCase()) ||
-            // Check if usernames match (case insensitive)
             (reviewItem.reviewer_login && currentUser.username && 
              reviewItem.reviewer_login.toLowerCase() === currentUser.username.toLowerCase())
         );
@@ -485,47 +457,45 @@ const UserServiceReviews = ({ serviceId, reviews: initialReviews, onReviewUpdate
         );
     };
 
-    // This empty component keeps the app from breaking while removing the actual debug component
-    const AuthDebugInfo = () => null;
-
-    // Get sorted reviews with current user's review at the top
-    const getSortedReviews = () => {
-        if (!reviews || reviews.length === 0) return [];
-        
-        // If not authenticated or no user review, return regular reviews
-        if (!isAuthenticated || !userReview) return reviews;
-        
-        // Split reviews into user's review and other reviews
-        const userReviews = reviews.filter(r => isUserReview(r));
-        const otherReviews = reviews.filter(r => !isUserReview(r));
-        
-        // Combine with user's review first
-        return [...userReviews, ...otherReviews];
-    };
-
     return (
         <div className="mb-10">
-            {/* Reviews Section Header */}
+            {/* Reviews Section Header with Sorting Dropdown */}
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-semibold text-gray-800">
                     Reviews {reviews.length ? `(${reviews.length})` : ''}
                 </h2>
                 
-       
+                {/* Sorting Dropdown */}
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="outline" className="flex items-center">
+                            <ArrowUpDown className="mr-2 h-4 w-4" />
+                            Sort Reviews
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => setSortOption('recent')}>
+                            Most Recent
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setSortOption('highest_rating')}>
+                            Highest Rating
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setSortOption('lowest_rating')}>
+                            Lowest Rating
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
             </div>
-            
+
             {/* Notification for logged-in users to direct them to My Bookings tab */}
             {isAuthenticated && !userReview && !showReviewForm && (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 flex items-center">
                     <AlertCircle className="h-5 w-5 text-blue-500 mr-2" />
                     <p className="text-blue-700">
-                        You can add a review for this service from the <a href="/bookings" className="underline font-medium">My Bookings</a> tab after your booking is completed.
+                        You can add a review for this service from the <Link to="/bookings" className="underline font-medium">My Bookings</Link> tab after your booking is completed.
                     </p>
                 </div>
             )}
-
-            {/* Auth Debug Info - Empty component to prevent errors */}
-            <AuthDebugInfo />
 
             {/* Review Form - Only show for authenticated users with completed bookings */}
             {isAuthenticated && showReviewForm && (hasCompletedBooking || isEditing) && (
@@ -620,8 +590,7 @@ const UserServiceReviews = ({ serviceId, reviews: initialReviews, onReviewUpdate
             {/* Review List */}
             {reviews?.length > 0 ? (
                 <div className="space-y-6">
-                    {getSortedReviews().map((reviewItem) => {
-                        // Check review ownership for each review item individually
+                    {getSortedReviews(reviews, sortOption, isAuthenticated, currentUser).map((reviewItem) => {
                         const isCurrentUserReview = isUserReview(reviewItem);
                         
                         return (

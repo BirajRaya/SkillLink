@@ -20,7 +20,6 @@ router.get('/service/:serviceId/availability', bookingController.checkServiceAva
 
 // Check if user has a booking for a specific service - THIS NEEDS TO BE ABOVE THE /:bookingId ROUTE
 router.get('/check/:serviceId', bookingController.checkServiceBooking);
-router.get('/check/:serviceId/date', bookingController.checkServiceBookingdate);
 
 // Alternative endpoint for checking service bookings
 router.get('/check-service/:serviceId', bookingController.checkBookingByService);
