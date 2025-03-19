@@ -98,7 +98,7 @@ const MyBookings = () => {
         setError('Invalid response format from server');
       }
     } catch (err) {
-      console.error(`[${getCurrentTimestamp()}] Error fetching bookings:`, err);
+      
       setError('Failed to load your bookings');
     } finally {
       setLoading(false);
