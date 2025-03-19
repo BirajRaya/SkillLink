@@ -63,6 +63,7 @@ const MyBookings = () => {
   const getCurrentTimestamp = () => {
     return new Date().toISOString().replace('T', ' ').slice(0, 19);
   };
+  const { currentUser } = useAuth(); // Get current user from auth context
 
 
 
@@ -300,7 +301,8 @@ const MyBookings = () => {
           ...prev,
           [bookingId]: {
             ...prev[bookingId],
-            evidence: reader.result  // Store Base64 string
+            evidence: reader.result,
+            fileName: file.name
           }
         }));
       };
@@ -417,22 +419,28 @@ const MyBookings = () => {
     
     try {
       // Create form data for file upload
-      const formData = new FormData();
-      formData.append('booking_id', booking.id);
-      formData.append('reason', disputeData[booking.id].reason);
-      formData.append('description', disputeData[booking.id].description);
+      // const formData = new FormData();
+      // formData.append('booking_id', booking.id);
+      // formData.append('reason', disputeData[booking.id].reason);
+      // formData.append('description', disputeData[booking.id].description);
       
-      if (disputeData[booking.id].evidence) {
-        formData.append('evidence', disputeData[booking.id].evidence);
+      // if (disputeData[booking.id].evidence) {
+      //   formData.append('evidence', disputeData[booking.id].evidence);
+      // }
+      
+
+      const disputeFormData = {
+        'booking_id' : booking.id,
+        'reason': disputeData[booking.id].reason,
+        'description': disputeData[booking.id].description,
+        'evidence': disputeData[booking.id].evidence ? disputeData[booking.id].evidence : null,
+        'user_id': currentUser.id,
+        'feedback':""
       }
-      
+
       console.log(`[${getCurrentTimestamp()}] Submitting dispute for booking ${booking.id}`);
       
-      const response = await api.post('/disputes/create', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      const response = await api.post('/disputes/create', disputeFormData);
       
       if (response.data && response.data.status === 'success') {
         toast({
@@ -780,9 +788,15 @@ const MyBookings = () => {
               <Input
                 type="file"
                 disabled={submittingDispute === booking.id}
+                key={`file-input-${booking.id}`}
                 onChange={(e) => handleDisputeFileChange(booking.id, e)}
                 className="border border-red-200"
               />
+              {disputeData[booking.id]?.evidence && (
+                <div className="mt-2 text-sm">
+                  Selected file: {disputeData[booking.id].fileName || "File uploaded"}
+                </div>
+              )}
               <p className="text-xs text-gray-500 mt-1">Upload any photos or documents that support your dispute (max 5MB).</p>
             </div>
             <div className="flex justify-end gap-2">

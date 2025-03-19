@@ -4,25 +4,25 @@ const router = express.Router();
 const redis = require("redis");
 
 // const redisClient = redis.createClient(); // Default localhost:6379
-const redisClient = redis.createClient({
-    socket: {
-      host: "localhost", 
-      port: 6379,
-    },
-  });
+// const redisClient = redis.createClient({
+//     socket: {
+//       host: "localhost", 
+//       port: 6379,
+//     },
+//   });
 
-redisClient.on("error", (err) => console.error("Redis Error:", err));
+// redisClient.on("error", (err) => console.error("Redis Error:", err));
 
-(async () => {
-    try {
-      await redisClient.connect();
-      console.log("Redis Connected Successfully!");
-    } catch (err) {
-      console.error("Redis Connection Error:", err);
-    }
-  })();
+// (async () => {
+//     try {
+//       await redisClient.connect();
+//       console.log("Redis Connected Successfully!");
+//     } catch (err) {
+//       console.error("Redis Connection Error:", err);
+//     }
+//   })();
 
-console.log('hello it is redis' + redisClient);
+// console.log('hello it is redis' + redisClient);
 
 
 router.get("/getChat/:user1/:user2", async (req, res) => {
@@ -33,13 +33,13 @@ router.get("/getChat/:user1/:user2", async (req, res) => {
 
     try {  
 
-        const cachedMessages = await redisClient.get(cacheKey);
+        // const cachedMessages = await redisClient.get(cacheKey);
 
-        if (cachedMessages) {
-            console.log("Cache Hit! Serving data from Redis...");
-            // console.log(cachedMessages);
-            return res.json(JSON.parse(cachedMessages));
-        }   
+        // if (cachedMessages) {
+        //     console.log("Cache Hit! Serving data from Redis...");
+        //     // console.log(cachedMessages);
+        //     return res.json(JSON.parse(cachedMessages));
+        // }   
 
         console.log("Cache Miss! Fetching data from PostgreSQL...");
 
@@ -62,8 +62,8 @@ router.get("/getChat/:user1/:user2", async (req, res) => {
         );
 
         //store data in redis cache for one hour
-        await redisClient.setEx(cacheKey, 3600, JSON.stringify(messages.rows));
-        await redisClient.setEx(cacheKey2, 3600, JSON.stringify(messages.rows));
+        // await redisClient.setEx(cacheKey, 3600, JSON.stringify(messages.rows));
+        // await redisClient.setEx(cacheKey2, 3600, JSON.stringify(messages.rows));
 
         res.json(messages.rows);
     } catch (error) {
@@ -149,29 +149,29 @@ router.post("/saveChat", async (req, res) => {
             [chatId, sender_id, message]
         );
 
-        const newMessageData = newMessage.rows[0];
+        // const newMessageData = newMessage.rows[0];
 
-        const cachedMessages = await redisClient.get(cacheKey);
-        console.log(cacheKey);
+        // const cachedMessages = await redisClient.get(cacheKey);
+        // console.log(cacheKey);
 
-        if (cachedMessages) {
-            let messages = JSON.parse(cachedMessages);
+        // if (cachedMessages) {
+        //     let messages = JSON.parse(cachedMessages);
 
-            messages.push(newMessageData);
+        //     messages.push(newMessageData);
 
-            // console.log('helo' + JSON.stringify(messages));
+        //     // console.log('helo' + JSON.stringify(messages));
 
-            await redisClient.setEx(cacheKey, 3600, JSON.stringify(messages));
-            await redisClient.setEx(cacheKey2, 3600, JSON.stringify(messages));
-        } else {
+        //     await redisClient.setEx(cacheKey, 3600, JSON.stringify(messages));
+        //     await redisClient.setEx(cacheKey2, 3600, JSON.stringify(messages));
+        // } else {
             const messages = await pool.query(
                 `SELECT sender_id, message, created_at 
                  FROM messages WHERE chat_id = $1 ORDER BY created_at ASC`,
                 [chatId]
             );
-            await redisClient.setEx(cacheKey, 3600, JSON.stringify(messages.rows));
-            await redisClient.setEx(cacheKey2, 3600, JSON.stringify(messages));
-        }
+            // await redisClient.setEx(cacheKey, 3600, JSON.stringify(messages.rows));
+            // await redisClient.setEx(cacheKey2, 3600, JSON.stringify(messages));
+        // }
         res.json({ success: true });
     } catch (error) {
         res.status(500).json({ error: error.message });

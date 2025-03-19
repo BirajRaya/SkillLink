@@ -137,9 +137,6 @@ const Sidebar = () => {
                           location.pathname === path ? "text-primary" : "text-gray-500 group-hover:text-primary"
                         )} />
                         <span className="text-sm">{label}</span>
-                        {label === "Disputes" && (
-                          <Badge variant="destructive" className="text-xs h-4 min-w-4 px-1">3</Badge>
-                        )}
                       </div>
                       {location.pathname === path && (
                         <div className="w-1 h-5 bg-primary rounded-full" />

@@ -16,6 +16,7 @@ import MyBookings from './pages/users/MyBookings';
 import BookingDetailPage from './pages/bookings/BookingDetailPage';
 import About_us from './pages/landing_page/about_us';
 import Contact_page from './pages/landing_page/contact_page';
+import DisputeDashboard from './pages/users/DisputeDashboard';
 
 // Protected Route Component - Ensures only authenticated users with proper roles can access specific routes
 const ProtectedRoute = ({ children, requiredRole }) => {
@@ -87,6 +88,11 @@ const AppWithAuth = () => {
             <ProtectedRoute>
               <MyBookings />
             </ProtectedRoute>
+          } />
+          <Route path="/dispute" element={
+            // <ProtectedRoute>
+              <DisputeDashboard />
+            // </ProtectedRoute>
           } />
           
           <Route path="/bookings/view/:id" element={

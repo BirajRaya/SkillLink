@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Edit, Trash2, Search } from "lucide-react";
 import api from "@/utils/api";
+import { useAuth } from "@/utils/AuthContext";
 
 const Disputes = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -12,7 +13,10 @@ const Disputes = () => {
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState("pending");
   const [evidence, setEvidence] = useState(null);
+  const [feedback, setFeedback] = useState("");
   const [errors, setErrors] = useState({});
+      const { currentUser } = useAuth(); // Get current user from auth context
+  
 
   // Fetch disputes data when component mounts
   useEffect(() => {
@@ -22,10 +26,15 @@ const Disputes = () => {
   const fetchDisputes = async () => {
     try {
       setIsLoading(true);
-      const response = await api.get("/disputes/get");
+      const response = await api.get("/disputes/user",{
+        params:{
+          user_id:currentUser.id,
+isAdmin:true
+        }
+      });
 
 
-      setDisputes(response.data);
+      setDisputes(response.data.disputes);
     } catch (error) {
       console.error("Error fetching disputes:", error);
     } finally {
@@ -79,6 +88,11 @@ const Disputes = () => {
       return;
     }
 
+    if (!feedback.trim()) {
+      setErrors({ ...errors, feedback: "Feedback is required" });
+      return;
+    }
+
     try {
       setIsLoading(true);
       let response;
@@ -86,7 +100,8 @@ const Disputes = () => {
       response = await api.put(`/disputes/updates/${selectedDispute.id}`, {
         reason,
         description,
-        status
+        status,
+        feedback
       });
       setIsModalOpen(false);
 
@@ -96,7 +111,7 @@ const Disputes = () => {
         )
       );
 
-      if (!response.ok) {
+      if (!response.statusText === "OK") {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
 
@@ -133,7 +148,7 @@ const Disputes = () => {
             />
             <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
           </div>
-          {/* Add Dispute button removed */}
+         
         </div>
       </div>
       <div className="bg-white shadow overflow-hidden rounded-lg">
@@ -213,6 +228,15 @@ const Disputes = () => {
               <option value="accept">Accept</option>
               <option value="reject">Reject</option>
             </select>
+            <div className="mb-4">
+              <textarea
+                placeholder="Provide feedback"
+                className="w-full p-2 border rounded"
+                value={feedback}
+                onChange={(e) => setFeedback(e.target.value)}
+              ></textarea>
+              {errors.feedback && <p className="text-red-500 text-sm mt-1">{errors.feedback}</p>}
+            </div>
             <div className="flex justify-end space-x-2 mt-4">
               <button className="px-4 py-2 bg-gray-300 rounded" onClick={handleCloseModal}>Cancel</button>
               <button className="px-4 py-2 bg-blue-500 text-white rounded" onClick={handleSubmit}>Update</button>
