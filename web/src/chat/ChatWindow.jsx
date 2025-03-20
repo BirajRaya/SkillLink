@@ -5,6 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import api from '@/lib/api';
 import { io } from "socket.io-client";
+import { 
+  User
+} from "lucide-react";
 
 const socket = io("http://localhost:5000");
 
@@ -135,15 +138,22 @@ export default function ChatWindow({ senderId, receiver }) {
   return (
     <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-800">
       <div className="p-4 flex items-center space-x-3 border-b dark:border-gray-700 bg-white dark:bg-gray-900">
-        <img 
-          src={receiver.avatar} 
-          alt={receiverName} 
-          className="w-10 h-10 rounded-full object-cover"
-          onError={(e) => {
-            e.target.onerror = null;
-            e.target.src = 'https://via.placeholder.com/40';
-          }}
-        />
+      {receiver.avatar ? (
+  <img 
+    src={receiver.avatar} 
+    alt={receiverName} 
+    className="w-10 h-10 rounded-full object-cover"
+    onError={(e) => {
+      e.target.onerror = null;
+      e.target.src = 'https://via.placeholder.com/40'; // Fallback image if loading fails
+    }} 
+  />
+) : (
+  <div className="h-9 w-9 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 flex items-center justify-center shadow-sm">
+    <User className="h-5 w-5 text-white" />
+  </div>
+)}
+
         <div>
           <p className="text-lg font-semibold">{receiverName || "User"}</p>
         </div>

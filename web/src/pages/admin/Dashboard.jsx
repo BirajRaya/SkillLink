@@ -215,7 +215,7 @@ const Dashboard = () => {
                     <Legend />
                     <Area type="monotone" dataKey="users" stroke="#8884d8" fillOpacity={1} fill="url(#colorUsers)" />
                     <Area type="monotone" dataKey="vendors" stroke="#82ca9d" fillOpacity={1} fill="url(#colorVendors)" />
-                    <Area type="monotone" dataKey="bookings" stroke="#ffc658" fillOpacity={1} fill="url(#colorBookings)" />
+                    <Area type="monotone" dataKey="bookings" stroke="#ffc658" fillOpacity={1} fill="url(#a)" />
                   </AreaChart>
                 </ResponsiveContainer>
               </CardContent>

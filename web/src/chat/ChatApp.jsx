@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import ContactList from "./ContactList";
 import ChatWindow from "./ChatWindow";
 import { useAuth } from '../utils/AuthContext';
@@ -21,6 +21,14 @@ export default function ChatApp() {
     return () => clearTimeout(timer);
   }, []);
 
+  // Add this new function to handle contact selection with optimization
+  const handleContactSelect = useCallback((contact) => {
+    // Only update state if selecting a different contact
+    if (!selectedUser || selectedUser.id !== contact.id) {
+      setSelectedUser(contact);
+    }
+  },[selectedUser]);
+  
   // Handle Socket.io connections
   useEffect(() => {
     if (!currentUser?.id) return;
@@ -67,7 +75,11 @@ export default function ChatApp() {
   return (
     <div className="flex h-[calc(95vh-4rem)] w-full bg-gray-100 dark:bg-gray-900">
       <div className="w-1/3 md:w-1/4 border-r dark:border-gray-700">
-        <ContactList userId={currentUser.id} onSelect={setSelectedUser} />
+        <ContactList 
+          userId={currentUser.id} 
+          onSelect={handleContactSelect} 
+          userRole={currentUser.role} 
+        />
       </div>
 
       <div className="w-2/3 md:w-3/4">
