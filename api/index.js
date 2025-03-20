@@ -143,6 +143,14 @@ io.on("connection", (socket) => {
     const currentCount = await redisClient.hGet(unreadKey, senderId);
     console.log(`Unread count for ${receiverId} from ${senderId}: ${currentCount}`);
     
+    // Invalidate contacts cache for both users
+    try {
+      await redisClient.del(`contacts:${senderId}`);
+      await redisClient.del(`contacts:${receiverId}`);
+    } catch (cacheError) {
+      console.error("Error clearing contacts cache:", cacheError);
+    }
+    
     // Check if receiver is online
     const receiverSocketId = onlineUsers.get(receiverId);
     
@@ -157,6 +165,7 @@ io.on("connection", (socket) => {
     }
   });
 
+  
   socket.on("markAsRead", async ({ userId, contactId }) => {
     if (!userId || !contactId) return;
     

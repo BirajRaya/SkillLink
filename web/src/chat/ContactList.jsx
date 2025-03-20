@@ -1,16 +1,42 @@
 /* eslint-disable react/prop-types */
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import api from '@/lib/api';
 import { User, X } from "lucide-react";
 import { io } from "socket.io-client";
 import { useAuth } from "../utils/AuthContext";
 
+// Enhanced debounce utility with cancel capability
+const createDebouncedFunction = (func, delay) => {
+  let timeoutId = null;
+  
+  // The debounced function
+  const debouncedFn = (...args) => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+    timeoutId = setTimeout(() => {
+      func(...args);
+      timeoutId = null;
+    }, delay);
+  };
+  
+  // Add a cancel method
+  debouncedFn.cancel = () => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      timeoutId = null;
+    }
+  };
+  
+  return debouncedFn;
+};
+
 // Create a single socket instance to be reused
 const socket = io("http://localhost:5000");
 
-export default function ContactList({ userId, onSelect, userRole }) {
-    const { currentUser, logout, setCurrentUser } = useAuth();
+export default React.memo(function ContactList({ userId, onSelect, userRole }) {
+  const { currentUser } = useAuth();
   const [contacts, setContacts] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedContact, setSelectedContact] = useState(null);
@@ -19,9 +45,109 @@ export default function ContactList({ userId, onSelect, userRole }) {
   const isMounted = useRef(true);
   const joinedChat = useRef(false);
   const lastFetchTime = useRef(0);
+  const [isSearchMode, setIsSearchMode] = useState(false);
+  const activeSearchRef = useRef(false);
+  const currentSearchQueryRef = useRef("");
+
+  
   
   // Determine if user is admin
   const isAdmin = currentUser.role === 'admin';
+
+  // Create a debounced search function (defined inside component to access state)
+  const debouncedSearch = useRef(
+    createDebouncedFunction(async (query) => {
+      if (!query.trim() || !isMounted.current) return;
+      
+      // Store the search query to verify it later
+      const currentQuery = query;
+      const searchStartTime = Date.now();
+      
+      console.log(`Starting search for: "${currentQuery}" at ${searchStartTime}`);
+      try {
+        setInitialLoading(true);
+        // First get all our existing contacts to make sure we have complete data
+        const allContactsResponse = await api.get(`http://localhost:5000/chat/contacts/${userId}`);
+        const allContacts = allContactsResponse.data;
+        
+        // Create a map of all existing contacts with their full data
+        const existingContactsMap = new Map(
+          allContacts.map(contact => [contact.id, contact])
+        );
+        
+        // Now get the search results
+        const response = await api.get(`http://localhost:5000/chat/search?query=${query}&userId=${userId}`);
+        
+        console.log(`Got response for "${currentQuery}" search. Current query: "${currentSearchQueryRef.current}", isSearchMode: ${isSearchMode}, activeSearch: ${activeSearchRef.current}`);
+        
+        // Check if we're still in search mode AND the search query is still relevant
+        if (isMounted.current && activeSearchRef.current && 
+            currentSearchQueryRef.current.toLowerCase().includes(currentQuery.toLowerCase())) {
+          console.log(`Found ${response.data.length} users matching query "${currentQuery}"`);
+          if (response.data.length > 0) {
+            // Enhance search results with full conversation data from existing contacts
+            const enhancedResults = response.data.map(searchResult => {
+              // If we have this contact in our existing list, merge the data to preserve history
+              const existingContact = existingContactsMap.get(searchResult.id);
+              if (existingContact) {
+                console.log(`Merging search result for ${searchResult.name} with existing contact data:`, {
+                  searchResult,
+                  existingContact
+                });
+                return {
+                  ...searchResult,
+                  // Always prioritize existing contact data for conversation history
+                  lastmessage: existingContact.lastmessage || searchResult.lastmessage || "Start a conversation...",
+                  lastmessagetime: existingContact.lastmessagetime || searchResult.lastmessagetime,
+                  unreadcount: existingContact.unreadcount || searchResult.unreadcount || 0
+                };
+              }
+              // No existing contact found, use search result data as is
+              return searchResult;
+            });
+            
+            console.log("Enhanced search results with conversation history:", enhancedResults);
+            setContacts(enhancedResults);
+          } else {
+            console.log(`No users found matching "${currentQuery}"`);
+          }
+        } else {
+          console.log(`Search results for "${currentQuery}" ignored - current search: "${currentSearchQueryRef.current}", mode: ${isSearchMode}, activeSearch: ${activeSearchRef.current}`);
+        }
+      } catch (error) {
+        console.error(`Error searching for "${currentQuery}":`, error);
+      } finally {
+        if (isMounted.current) {
+          setInitialLoading(false);
+        }
+      }
+    }, 500) // Increased debounce time for more stability
+  ).current;
+
+  // Memoized contacts sorted by unread count and last message time
+  const displayedContacts = useMemo(() => {
+    // If we have a search query, we've already fetched filtered contacts from the server
+    if (searchQuery.trim().length > 0) {
+      return contacts;
+    }
+    
+    // Otherwise, sort contacts by unread count (higher first) and lastmessagetime
+    return [...contacts].sort((a, b) => {
+      // Admin contacts always come first for vendors
+      if (a.role === 'admin' && userRole === 'vendor') return -1;
+      if (b.role === 'admin' && userRole === 'vendor') return 1;
+      
+      // Sort by unread count first (descending)
+      if ((b.unreadcount || 0) - (a.unreadcount || 0) !== 0) {
+        return (b.unreadcount || 0) - (a.unreadcount || 0);
+      }
+      
+      // Then sort by last message time (most recent first)
+      const timeA = a.lastmessagetime ? new Date(a.lastmessagetime).getTime() : 0;
+      const timeB = b.lastmessagetime ? new Date(b.lastmessagetime).getTime() : 0;
+      return timeB - timeA;
+    });
+  }, [contacts, searchQuery, userRole]);
 
   useEffect(() => {
     isMounted.current = true;
@@ -32,6 +158,8 @@ export default function ContactList({ userId, onSelect, userRole }) {
       socket.emit("joinChat", userId);
       joinedChat.current = true;
     }
+
+    
     
     // Initial fetch of contacts
     initialFetchContacts();
@@ -95,7 +223,7 @@ export default function ContactList({ userId, onSelect, userRole }) {
     
     // Set up a refresh interval for contacts - every 60 seconds
     const interval = setInterval(() => {
-      if (isMounted.current) {
+      if (isMounted.current && !isSearchMode) {
         quietlyFetchContacts();
       }
     }, 60000);
@@ -105,21 +233,35 @@ export default function ContactList({ userId, onSelect, userRole }) {
       socket.off("receiveMessage", handleReceiveMessage);
       socket.off("messagesMarkedAsRead", handleMessagesMarkedAsRead);
       clearInterval(interval);
+      
+      // Cancel any pending debounced searches
+      debouncedSearch.cancel();
+      
+      // Clear search refs on unmount
+      activeSearchRef.current = false;
+      currentSearchQueryRef.current = "";
     };
-  }, [userId, selectedContact]);
+  }, [userId, debouncedSearch]);
 
   // Initial fetch with loading animation
   const initialFetchContacts = async () => {
     if (!isMounted.current || !userId) return;
     
+    // Cancel any pending searches
+    debouncedSearch.cancel();
+    console.log(`Fetching contacts for user ${userId}`);
+    
     try {
       setInitialLoading(true);
       const response = await api.get(`http://localhost:5000/chat/contacts/${userId}`);
+      const adminResponse = await api.get('http://localhost:5000/chat/admin');
       
-      if (isMounted.current) {
+      if (isMounted.current && !activeSearchRef.current) {
+        console.log(`Received ${response.data.length} contacts from server`);
         let contactsList = response.data;
+        console.log("Contacts list:", contactsList);
         
-        // If user is a vendor, ensure admin is in the contact list
+        // If user is a vendor, ensure admin is always in the contact list
         if (userRole === 'vendor') {
           // Check if admin is already in the contacts list
           const adminExists = contactsList.some(contact => contact.role === 'admin');
@@ -127,7 +269,7 @@ export default function ContactList({ userId, onSelect, userRole }) {
           if (!adminExists) {
             // Fetch admin details
             try {
-              const adminResponse = await api.get('http://localhost:5000/users/admin');
+            
               if (adminResponse.data && adminResponse.data.id) {
                 // Add admin to the top of the contacts list
                 contactsList = [
@@ -137,22 +279,47 @@ export default function ContactList({ userId, onSelect, userRole }) {
                     avatar: adminResponse.data.avatar || null,
                     role: 'admin',
                     unreadcount: 0,
-                    lastmessage: 'Contact admin for support'
+                    lastmessage: 'Start a conversation...'
                   },
                   ...contactsList
                 ];
               }
             } catch (adminError) {
               console.error("Error fetching admin details:", adminError);
+              
+              // Even if admin fetch fails, add a placeholder admin
+              contactsList = [
+                {
+                  id: 'admin',
+                  name: 'Admin Support',
+                  role: 'admin',
+                  unreadcount: 0,
+                  lastmessage: 'Start a conversation...'
+                },
+                ...contactsList
+              ];
             }
           }
         }
         
         setContacts(contactsList);
         lastFetchTime.current = Date.now();
+      } else {
+        console.log('Contact results ignored because search is active');
       }
     } catch (error) {
       console.error("Error fetching contacts:", error);
+      
+      // If there's an error but user is a vendor, still show admin
+      if (userRole === 'vendor' && isMounted.current) {
+        setContacts([{
+          id: 'admin',
+          name: 'Admin Support',
+          role: 'admin',
+          unreadcount: 0,
+          lastmessage: 'Start a conversation...'
+        }]);
+      }
     } finally {
       if (isMounted.current) {
         setInitialLoading(false);
@@ -161,14 +328,14 @@ export default function ContactList({ userId, onSelect, userRole }) {
   };
 
   // Background fetch without animation
-  const quietlyFetchContacts = async () => {
-    if (!isMounted.current || !userId) return;
+  const quietlyFetchContacts = createDebouncedFunction(async () => {
+    if (!isMounted.current || !userId || activeSearchRef.current) return;
     
     try {
       setRefreshing(true);
       const response = await api.get(`http://localhost:5000/chat/contacts/${userId}`);
       
-      if (isMounted.current) {
+      if (isMounted.current && !activeSearchRef.current) {
         let contactsList = response.data;
         
         // If user is a vendor, ensure admin contact is preserved
@@ -177,75 +344,164 @@ export default function ContactList({ userId, onSelect, userRole }) {
           const adminContact = contacts.find(contact => contact.role === 'admin');
           
           if (adminContact) {
-            // Check if admin exists in new contacts
-            const adminExists = contactsList.some(contact => contact.role === 'admin' || contact.id === adminContact.id);
+            // Create a map of contact IDs for O(1) lookup
+            const contactIds = new Set(contactsList.map(contact => contact.id));
             
-            if (!adminExists) {
+            // Only add the admin if it doesn't already exist in the new contacts list
+            if (!contactIds.has(adminContact.id)) {
               // Keep admin at the top of the list
               contactsList = [adminContact, ...contactsList];
+            }
+          } else {
+            // If admin not in current contacts, fetch admin details
+            try {
+              const adminResponse = await api.get('http://localhost:5000/chat/admin');
+              if (adminResponse.data && adminResponse.data.id) {
+                // Create a map of contact IDs for O(1) lookup
+                const contactIds = new Set(contactsList.map(contact => contact.id));
+                
+                // Only add the admin if it doesn't already exist in the new contacts list
+                if (!contactIds.has(adminResponse.data.id)) {
+                  // Add admin to the top of the contacts list
+                  contactsList = [
+                    {
+                      id: adminResponse.data.id,
+                      name: adminResponse.data.name || 'Admin Support',
+                      avatar: adminResponse.data.avatar || null,
+                      role: 'admin',
+                      unreadcount: 0,
+                      lastmessage: 'Start a conversation...'
+                    },
+                    ...contactsList
+                  ];
+                }
+              }
+            } catch (adminError) {
+              console.error("Error fetching admin details:", adminError);
+              // Add placeholder admin if fetch fails
+              contactsList = [
+                {
+                  id: 'admin',
+                  name: 'Admin Support',
+                  role: 'admin',
+                  unreadcount: 0,
+                  lastmessage: 'Start a conversation...'
+                },
+                ...contactsList
+              ];
             }
           }
         }
         
-        setContacts(contactsList);
+        // Ensure no duplicate IDs in the final list (just in case)
+        const uniqueContacts = [];
+        const seenIds = new Set();
+        
+        for (const contact of contactsList) {
+          if (!seenIds.has(contact.id)) {
+            uniqueContacts.push(contact);
+            seenIds.add(contact.id);
+          } else {
+            console.warn(`Duplicate contact ID detected: ${contact.id}`);
+          }
+        }
+        
+        setContacts(uniqueContacts);
         lastFetchTime.current = Date.now();
       }
     } catch (error) {
       console.error("Error refreshing contacts:", error);
+      
+      // If error but user is vendor with no contacts, still show admin
+      if (userRole === 'vendor' && contacts.length === 0 && isMounted.current) {
+        setContacts([{
+          id: 'admin',
+          name: 'Admin Support',
+          role: 'admin',
+          unreadcount: 0,
+          lastmessage: 'Start a conversation...'
+        }]);
+      }
     } finally {
       if (isMounted.current) {
         setRefreshing(false);
       }
     }
-  };
+  }, 300);
 
-  const handleSearch = async (e) => {
-    const query = e.target.value;
-    setSearchQuery(query);
-    if (query.trim().length > 0) {
-      try {
-        setInitialLoading(true);
-        const response = await api.get(`http://localhost:5000/chat/search?query=${query}&userId=${userId}`);
-        if (isMounted.current) {
-          setContacts(response.data);
-        }
-      } catch (error) {
-        console.error("Error searching users:", error);
-      } finally {
-        if (isMounted.current) {
-          setInitialLoading(false);
-        }
-      }
-    } else {
+  // Handle input field changes immediately
+  const handleInputChange = (e) => {
+    const value = e.target.value;
+    console.log("Search input changed:", value);
+    
+    // Update the input value immediately
+    setSearchQuery(value);
+    // Keep a reference to current search query
+    currentSearchQueryRef.current = value;
+    
+    // Handle empty search query
+    if (value.trim() === '') {
+      console.log("Search query empty, restoring contacts");
+      
+      // Cancel any pending search requests
+      debouncedSearch.cancel();
+      
+      // Update both the state and ref
+      setIsSearchMode(false);
+      activeSearchRef.current = false;
+      
       initialFetchContacts();
+      return;
     }
+    
+    // Update both the state and ref
+    setIsSearchMode(true);
+    activeSearchRef.current = true;
+    
+    // Trigger debounced search
+    debouncedSearch(value);
   };
 
   const clearSearch = () => {
+    console.log("Clearing search and restoring contacts");
+    
+    // Cancel any pending search requests
+    debouncedSearch.cancel();
+    
     setSearchQuery("");
+    currentSearchQueryRef.current = "";
+    setIsSearchMode(false);
+    activeSearchRef.current = false;
     initialFetchContacts();
   };
 
   const handleSelectContact = async (contact) => {
-    // Immediately update UI state without waiting for API
+    // Prevent selecting the same contact again
+    if (selectedContact?.id === contact.id) {
+      return; // Exit early if the same contact is clicked
+    }
+    
+    // Update local state
     setSelectedContact(contact);
+    
+    // Notify parent component
     onSelect(contact);
     
-    // Optimistically update the unread count in local state immediately
+    // Optimistically update unread count
     setContacts(prevContacts => 
       prevContacts.map(c => 
         c.id === contact.id ? { ...c, unreadcount: 0 } : c
       )
     );
     
-    // Then handle the API calls in the background
+    // Background API calls
     try {
       await api.post("http://localhost:5000/chat/markAsRead", {
         userId: userId,
         contactId: contact.id
       });
       
-      // Emit socket event to mark as read
+      // Emit socket event
       socket.emit("markAsRead", {
         userId: userId,
         contactId: contact.id
@@ -281,7 +537,7 @@ export default function ContactList({ userId, onSelect, userRole }) {
             type="text"
             placeholder="Search users..."
             value={searchQuery}
-            onChange={handleSearch}
+            onChange={handleInputChange}
             className="w-full p-2 border rounded-lg pr-10"
           />
           {searchQuery && (
@@ -295,12 +551,13 @@ export default function ContactList({ userId, onSelect, userRole }) {
       <div className="overflow-y-auto max-h-[calc(100vh-10rem)]">
         {initialLoading ? (
           <LoadingSkeleton />
-        ) : contacts.length === 0 ? (
+        ) : displayedContacts.length === 0 ? (
+          // Show "No contacts" message only for admin users, vendors should always have at least the admin contact
           <div className="text-center text-gray-500 my-6">
-            No contacts found
+            {isAdmin ? "No contacts found" : "Loading contacts..."}
           </div>
         ) : (
-          contacts.map((contact) => {
+          displayedContacts.map((contact) => {
             // Make sure the unread count is a number
             const unreadCount = parseInt(contact.unreadcount || 0);
             const hasUnread = unreadCount > 0;
@@ -329,23 +586,26 @@ export default function ContactList({ userId, onSelect, userRole }) {
                 onClick={() => handleSelectContact(contact)}
               >
                 <div className="flex items-center">
-                  <Avatar className={`mr-3 ${hasUnread && !isSelected ? "ring-2 ring-blue-500" : isAdminContact && userRole === 'vendor' && !isSelected ? "ring-2 ring-green-500" : ""}`}>
-                    {contact.avatar ? (
-                      <img 
-                        src={contact.avatar} 
-                        alt={contact.name} 
-                        className="rounded-full"
-                        onError={(e) => {
-                          e.target.onerror = null;
-                          e.target.src = 'https://via.placeholder.com/40';
-                        }}
-                      />
-                    ) : (
-                      <div className="rounded-full">
-                        <User/>
-                      </div>
-                    )}
-                  </Avatar>
+                <Avatar className={`mr-3 ${hasUnread && !isSelected ? "ring-2 ring-blue-500" : 
+                    (isAdminContact && userRole === 'vendor' && !isSelected ? " ring-green-500" : "")}`}>
+  {
+    contact.avatar ? (
+      <img 
+        src={contact.avatar} 
+        alt={contact.name} 
+        className="rounded-full"
+        onError={(e) => {
+          e.target.onerror = null;
+          e.target.src = 'https://via.placeholder.com/40'; // Fallback image if loading fails
+        }} 
+      />
+    ) : (
+      <div className="h-9 w-9 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 flex items-center justify-center shadow-sm">
+        <User className="h-5 w-5 text-white" />
+      </div>
+    )
+  }
+</Avatar>
                   
                   <div className="min-w-0">
                     <p className={`font-medium truncate ${
@@ -381,4 +641,4 @@ export default function ContactList({ userId, onSelect, userRole }) {
       </div>
     </div>
   );
-}
+});

@@ -23,6 +23,11 @@ redisClient.on("connect", () => console.log("Redis Connected Successfully in Cha
     }
 })();
 
+
+const CONTACTS_CACHE_EXPIRY = 300; 
+
+
+
 // Get unread message counts for a user
 router.get("/unreadMessages/:userId", async (req, res) => {
     const { userId } = req.params;
@@ -135,13 +140,40 @@ router.get("/getChat/:user1/:user2", async (req, res) => {
 
 router.get("/contacts/:userId", async (req, res) => {
     const { userId } = req.params;
+    const contactsCacheKey = `contacts:${userId}`;
+    
     try {
-      // Optimized SQL query - this query should be faster without Redis caching
+      // Try to get contacts from Redis cache first
+      const cachedContacts = await redisClient.get(contactsCacheKey);
+      
+      if (cachedContacts) {
+        console.log("Cache Hit! Serving contacts from Redis...");
+        const contacts = JSON.parse(cachedContacts);
+        
+        // Get unread counts from Redis
+        const unreadKey = `unread:${userId}`;
+        const unreadCounts = await redisClient.hGetAll(unreadKey);
+        
+        // Update unread counts in cached contacts
+        const contactsWithUpdatedCounts = contacts.map(contact => {
+          return {
+            ...contact,
+            unreadcount: parseInt(unreadCounts[contact.id] || 0)
+          };
+        });
+        
+        return res.json(contactsWithUpdatedCounts);
+      }
+      
+      console.log("Cache Miss! Fetching contacts from PostgreSQL...");
+      
+      // Optimized SQL query
       const query = `
       SELECT DISTINCT 
         u.id, 
         u.full_name AS name, 
         u.profile_picture AS avatar,
+        u.role,
         m.message as lastmessage,
         m.created_at as lastmessagetime
       FROM users u
@@ -166,18 +198,16 @@ router.get("/contacts/:userId", async (req, res) => {
       const unreadKey = `unread:${userId}`;
       const unreadCounts = await redisClient.hGetAll(unreadKey);
       
-      console.log(`Unread counts for contacts of user ${userId}:`, unreadCounts);
-      
       // Add unread count to each contact
       const contactsWithUnreadCounts = rows.map(contact => {
-        // Make sure to convert to number - Redis returns strings
-        const unreadcount = parseInt(unreadCounts[contact.id] || 0);
-        
         return {
           ...contact,
-          unreadcount
+          unreadcount: parseInt(unreadCounts[contact.id] || 0)
         };
       });
+      
+      // Store contacts in Redis cache (without unread counts to avoid staleness)
+      await redisClient.setEx(contactsCacheKey, CONTACTS_CACHE_EXPIRY, JSON.stringify(rows));
       
       res.json(contactsWithUnreadCounts);
     } catch (error) {
@@ -186,6 +216,30 @@ router.get("/contacts/:userId", async (req, res) => {
     }
 });
   
+// Add this route to your chatRoutes.js
+router.get("/admin", async (req, res) => {
+  try {
+    // Find admin user by email
+    const adminQuery = `
+      SELECT id, full_name AS name, profile_picture AS avatar, role
+      FROM users
+      WHERE email = 'admin@gmail.com'
+      LIMIT 1;
+    `;
+    
+    const { rows } = await pool.query(adminQuery);
+    
+    if (rows.length > 0) {
+      res.json(rows[0]);
+    } else {
+      res.status(404).json({ error: "Admin user not found" });
+    }
+  } catch (error) {
+    console.error("Error fetching admin user:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 // Search users
 router.get("/search", async (req, res) => {
     try {
@@ -239,10 +293,7 @@ router.post("/saveChat", async (req, res) => {
 
         const newMessageData = newMessage.rows[0];
 
-        // Note: We're NOT incrementing unread count here.
-        // That's handled by Socket.io to avoid double-counting.
-        
-        // Update message cache
+
         const cachedMessages = await redisClient.get(cacheKey);
 
         if (cachedMessages) {
@@ -258,6 +309,15 @@ router.post("/saveChat", async (req, res) => {
             );
             await redisClient.setEx(cacheKey, 3600, JSON.stringify(messages.rows));
             await redisClient.setEx(cacheKey2, 3600, JSON.stringify(messages.rows));
+        }
+
+          // Invalidate contacts cache for both users
+          try {
+            await redisClient.del(`contacts:${sender_id}`);
+            await redisClient.del(`contacts:${receiver_id}`);
+        } catch (cacheError) {
+            console.error("Error clearing contacts cache:", cacheError);
+            // Continue even if cache invalidation fails
         }
         
         res.json({ success: true });

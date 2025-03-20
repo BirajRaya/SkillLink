@@ -41,6 +41,22 @@ const ProtectedRoute = ({ children, requiredRole }) => {
   return children;
 };
 
+// Customer-only route - only allows regular users (not admins or vendors)
+const CustomerOnlyRoute = ({ children }) => {
+  const { currentUser, isAuthenticated } = useAuth();
+  
+  // If user is logged in as admin or vendor, redirect to their dashboard
+  if (isAuthenticated && (currentUser?.role === "admin" || currentUser?.role === "vendor")) {
+    if (currentUser.role === "admin") {
+      return <Navigate to="/admin-dashboard" />;
+    } else {
+      return <Navigate to="/vendor-dashboard" />;
+    }
+  }
+  
+  return children;
+};
+
 // Inner App component that uses auth hooks
 const AppWithAuth = () => {
   const { isAuthenticated, currentUser } = useAuth();
@@ -78,10 +94,30 @@ const AppWithAuth = () => {
             ) : <SignInPage />
           } />
 
-          <Route path="/search" element={<SearchResults />} />
-          <Route path="/services/:id" element={<ServiceDetails />} />
-          <Route path="/about" element={<About_us />} />
-          <Route path="/contact" element={<Contact_page />} />
+          {/* Protected routes that only regular users can access */}
+          <Route path="/search" element={
+            <CustomerOnlyRoute>
+              <SearchResults />
+            </CustomerOnlyRoute>
+          } />
+          
+          <Route path="/services/:id" element={
+            <CustomerOnlyRoute>
+              <ServiceDetails />
+            </CustomerOnlyRoute>
+          } />
+          
+          <Route path="/about" element={
+            <CustomerOnlyRoute>
+              <About_us />
+            </CustomerOnlyRoute>
+          } />
+          
+          <Route path="/contact" element={
+            <CustomerOnlyRoute>
+              <Contact_page />
+            </CustomerOnlyRoute>
+          } />
           
           {/* Consolidated booking routes with ProtectedRoute */}
           <Route path="/bookings" element={
