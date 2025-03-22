@@ -20,7 +20,7 @@ const forgotPassword = async (req, res) => {
   try {
     // Find user by email
     const user = await findUserByEmail(client, email);
-    if (!user) {
+    if (user.rows.length === 0) {
       return res.status(400).json({ message: 'Email not found' });
     }
 

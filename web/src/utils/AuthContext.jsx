@@ -69,20 +69,20 @@ export const AuthProvider = ({ children }) => {
       
       if (userData) {
         // Only store essential user data to reduce size
-        const minimalUserData = {
-          id: userData.id,
-          email: userData.email,
-          role: userData.role,
-          fullName: userData.full_name || userData.fullName || 'User',
-        };
+        // const minimalUserData = {
+        //   id: userData.id,
+        //   email: userData.email,
+        //   role: userData.role,
+        //   fullName: userData.full_name || userData.fullName || 'User',
+        // };
         
         try {
-          localStorage.setItem('user', JSON.stringify(minimalUserData));
+          localStorage.setItem('user', JSON.stringify(userData));
         } catch {
           // If storing user data fails, clear and retry
           localStorage.clear();
           localStorage.setItem('token', token);
-          localStorage.setItem('user', JSON.stringify(minimalUserData));
+          localStorage.setItem('user', JSON.stringify(userData));
         }
         
         // Set the full user data in state

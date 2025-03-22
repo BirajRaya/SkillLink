@@ -154,7 +154,6 @@ const checkExistingBooking = async () => {
     
       
       const data = response.data;
-      console.log(data);
       
       // Using hardcoded data for this example
       console.log(`[${getCurrentTimestamp()}] Fetched vendor availability for vendor ${service.vendor_id}`);

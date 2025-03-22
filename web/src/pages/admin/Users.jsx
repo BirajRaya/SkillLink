@@ -75,7 +75,7 @@ const Users = () => {
   useEffect(() => {
     const timer = setTimeout(() => {
       setSearchTerm(searchInputValue);
-    }, 300);
+    }, 1000);
     
     return () => clearTimeout(timer);
   }, [searchInputValue]);
@@ -512,10 +512,10 @@ const Users = () => {
   );
 
   return (
-    <div className="container mx-auto">
+    <div className="container mx-auto px-4 py-6">
       {/* Header and Search */}
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-4xl font-bold">Users</h1>
+        <h1 className="text-2xl font-semibold">Users</h1>
         <div className="flex items-center space-x-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
@@ -536,7 +536,6 @@ const Users = () => {
           </button>
         </div>
       </div>
-
       {/* Users Table */}
       <div className="bg-white shadow overflow-hidden rounded-lg">
         <table className="min-w-full divide-y divide-gray-200">
@@ -571,9 +570,9 @@ const Users = () => {
                       <div className="flex-shrink-0 h-10 w-10">
                         {user.profile_picture ? (
                           <img 
-                            src={user.profile_picture.startsWith('/uploads/') 
-                              ? `${import.meta.env.VITE_API_URL}${user.profile_picture}`
-                              : null}
+                            src={user.profile_picture.startsWith('data:image') 
+                              ? user.profile_picture
+                              : `${import.meta.env.VITE_API_URL}${user.profile_picture}`}
                             alt={user.full_name}
                             className="h-10 w-10 rounded-full object-cover"
                             onError={(e) => {
@@ -714,7 +713,7 @@ const Users = () => {
       {/* Add User Modal */}
       {isAddUserModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md max-height-[90vh] overflow-y-auto">
             <h2 className="text-xl font-semibold mb-4">Add New User</h2>
             <form onSubmit={handleAddUser} className="space-y-4">
               {formModalError && (
@@ -757,7 +756,7 @@ const Users = () => {
       {/* Edit User Modal */}
       {isEditUserModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md max-height-[90vh] overflow-y-auto">
             <h2 className="text-xl font-semibold mb-4">Edit User</h2>
             <form onSubmit={handleEditUser} className="space-y-4">
               {formModalError && (

@@ -227,7 +227,7 @@ const Bookings = () => {
     return (
       <div className="container p-6">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold">Manage Bookings</h1>
+          <h1 className="text-2xl font-semibold">Manage Bookings</h1>
         </div>
         <div className="flex items-center justify-center h-64">
           <Loader2 className="h-8 w-8 animate-spin text-primary mr-2" />
@@ -241,7 +241,7 @@ const Bookings = () => {
     <div className="container p-6">
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Manage Bookings</h1>
+        <h1 className="text-2xl font-semibold">Manage Bookings</h1>
       </div>
       
       {/* Search */}

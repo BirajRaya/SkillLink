@@ -10,6 +10,8 @@ const LandingPage = () => {
   const [recommendations, setRecommendations] = useState([]);
   const [showRecommendations, setShowRecommendations] = useState(false);
   const navigate = useNavigate();
+  const [isLoggedIn, setIsLoggedIn] = useState(false); // Track login state
+
 
 
   const categories = [
@@ -19,6 +21,21 @@ const LandingPage = () => {
     { id: 4, name: "Electrical Services", description: "Electrical installation and repair", icon: "bolt" },
     { id: 5, name: "Carpentry Services", description: "Woodworking and furniture repair", icon: "hammer" }
   ];
+
+  useEffect(() => {
+    const checkLoginStatus = () => {
+      const token = localStorage.getItem('token');
+      setIsLoggedIn(!!token);
+    };
+    
+    checkLoginStatus();
+  }, []);
+
+  const handleVendorButtonClick = () => {
+    navigate('/register');
+  };
+
+  
 
   // Update recommendations when search term changes
   useEffect(() => {
@@ -250,14 +267,18 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* Call to Action */}
-      <section className="bg-blue-600 text-white py-16 text-center">
-        <h2 className="text-3xl font-bold">Are You a Skilled Professional?</h2>
-        <p className="text-lg mt-2">Join SkillLink and start connecting with clients today.</p>
-        <Button className="mt-6 bg-white text-blue-600 font-semibold px-6 py-3">
-          Become a Vendor
-        </Button>
-      </section>
+      {!isLoggedIn && (
+        <section className="bg-blue-600 text-white py-16 text-center">
+          <h2 className="text-3xl font-bold">Are You a Skilled Professional?</h2>
+          <p className="text-lg mt-2">Join SkillLink and start connecting with clients today.</p>
+          <Button 
+            className="mt-6 bg-white text-blue-600 font-semibold px-6 py-3"
+            onClick={handleVendorButtonClick}
+          >
+            Become a Vendor
+          </Button>
+        </section>
+      )}
     </div>
   );
 };

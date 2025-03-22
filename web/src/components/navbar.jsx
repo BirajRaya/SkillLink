@@ -71,6 +71,8 @@ const Navbar = () => {
     }
   }, [currentUser]);
 
+  
+
   // Function to get user's first name from full name
   const getFirstName = () => {
     if (!currentUser || !currentUser.fullName) return "User";
@@ -109,13 +111,13 @@ const Navbar = () => {
     //   return;
     // }
 
-    if (id === "address") {
-      if (!value.trim()) {
-        newErrors.address = "Address is required";
-      } else {
-        delete newErrors.address;
-      }
-    }
+    // if (id === "address") {
+    //   if (!value.trim()) {
+    //     newErrors.address = "Address is required";
+    //   } else {
+    //     delete newErrors.address;
+    //   }
+    // }
 
     try {
       setIsLoading(true);
@@ -135,7 +137,6 @@ const Navbar = () => {
       updateUser.role = currentUser.role;
       updateUser.id = currentUser.id;
       setCurrentUser(updateUser);
-      console.log(updateUser);
       localStorage.setItem('user', JSON.stringify(updateUser));
       setError("");
 

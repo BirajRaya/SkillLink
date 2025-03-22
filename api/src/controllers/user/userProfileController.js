@@ -4,7 +4,6 @@ const { findUserByEmail, updatePassword } = require('../auth/userQueries');
 const bcrypt = require('bcrypt');
 
 const updateProfile = async (req, res) => {
-    console.log('Inside update profile');
 
     const client = await pool.connect();
     const { fullName, profilePicture, email, phone, currentPassword, newPassword, address } = req.body;
