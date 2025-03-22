@@ -16,8 +16,15 @@ const Disputes = () => {
   const [feedback, setFeedback] = useState("");
   const [errors, setErrors] = useState({});
   const { currentUser } = useAuth(); // Get current user from auth context
+  const [expandedDescriptions, setExpandedDescriptions] = useState({});
   
-
+  const toggleDescription = (id) => {
+    setExpandedDescriptions(prev => ({
+      ...prev,
+      [id]: !prev[id]
+    }));
+  };
+  
   // Fetch disputes data when component mounts
   useEffect(() => {
     fetchDisputes();
@@ -135,6 +142,23 @@ const Disputes = () => {
     dispute.service_name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Function to truncate text properly with word breaks
+  const truncateText = (text, maxLength) => {
+    if (!text || text.length <= maxLength) return text;
+    
+    // If the text has natural word breaks
+    if (text.includes(' ')) {
+      const truncated = text.substr(0, maxLength);
+      // Find the last space to avoid cutting words
+      const lastSpaceIndex = truncated.lastIndexOf(' ');
+      return truncated.substr(0, lastSpaceIndex) + '...';
+    } 
+    // For long strings without spaces (like in your example)
+    else {
+      return text.substr(0, maxLength) + '...';
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-6">
       <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
@@ -153,7 +177,7 @@ const Disputes = () => {
         </div>
       </div>
       <div className="bg-white shadow overflow-hidden rounded-lg">
-  <div className="overflow-x-auto">
+      <div className="overflow-x-auto">
     <table className="min-w-full divide-y divide-gray-200">
       <thead className="bg-gray-50">
         <tr>
@@ -218,11 +242,31 @@ const Disputes = () => {
               <td className="px-6 py-4 text-sm text-gray-900">{dispute.vendor_name || 'N/A'}</td>
               <td className="px-6 py-4 text-sm text-gray-900">{dispute.service_name || 'N/A'}</td>
               <td className="px-6 py-4 text-sm text-gray-900">{dispute.reason}</td>
-              <td className="px-6 py-4 text-sm text-gray-900" title={dispute.description}>{dispute.description}</td>
+              <td className="px-6 py-4">
+                <div className="text-sm text-gray-900 max-w-[300px] break-words">
+                  {dispute.description && dispute.description.length > 60 
+                    ? (
+                        <>
+                          {expandedDescriptions[dispute.id] 
+                            ? dispute.description 
+                            : truncateText(dispute.description, 60)}
+                          <button 
+                            className="text-blue-500 ml-1 text-xs hover:underline focus:outline-none"
+                            onClick={() => toggleDescription(dispute.id)}
+                          >
+                            {expandedDescriptions[dispute.id] ? 'Show less' : 'Show more'}
+                          </button>
+                        </>
+                      ) 
+                    : dispute.description || 'N/A'}
+                </div>
+              </td>
               <td className="px-6 py-4 text-sm text-gray-500">{dispute.created_at ? new Date(dispute.created_at).toLocaleDateString() : 'N/A'}</td>
               <td className="px-6 py-4">
                 <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                  dispute.status.toLowerCase() === 'accept' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                  dispute.status.toLowerCase() === 'accept' ? 'bg-green-100 text-green-800' : 
+                  dispute.status.toLowerCase() === 'reject' ? 'bg-red-100 text-red-800' : 
+                  'bg-yellow-100 text-yellow-800'
                 }`}>
                   {dispute.status.toUpperCase()}
                 </span>
@@ -254,7 +298,7 @@ const Disputes = () => {
 </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-lg">
             <h2 className="text-xl font-semibold mb-4">Edit Dispute</h2>
             <div className="mb-4">

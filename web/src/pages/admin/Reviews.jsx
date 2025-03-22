@@ -584,7 +584,7 @@ const Reviews = () => {
     return (
       <div className="container p-6">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold">Service Reviews</h1>
+          <h1 className="text-4xl font-bold">Service Reviews</h1>
         </div>
         
         <div className="flex items-center justify-center h-64">
@@ -602,7 +602,7 @@ const Reviews = () => {
     <div className="container p-6">
       {/* Header with search */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-        <h1 className="text-2xl font-bold">Service Reviews</h1>
+        <h1 className="text-2xl font-semibold">Service Reviews</h1>
         
         <div className="flex items-center gap-2">
           <form onSubmit={handleSearch} className="flex gap-2">

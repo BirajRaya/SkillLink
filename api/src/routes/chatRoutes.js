@@ -128,7 +128,6 @@ router.get("/getChat/:user1/:user2", async (req, res) => {
 
         res.json(messages.rows);
     } catch (error) {
-        console.log(error);
         res.status(500).json({ error: error.message });
     }
 });

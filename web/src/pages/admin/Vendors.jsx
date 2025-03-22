@@ -134,7 +134,7 @@ const Vendors = () => {
     setIsLoading(true);
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
+      const timeoutId = setTimeout(() => controller.abort(), 100000);
 
       const response = await api.get('/vendors/getAllVendors', {
         signal: controller.signal,
@@ -163,12 +163,12 @@ const Vendors = () => {
         text: errorMsg,
       });
       
-      toast({
-        title: "Error",
-        description: errorMsg,
-        variant: "destructive",
-        className: "bg-red-500 text-white font-medium border-l-4 border-red-700"
-      });
+      // toast({
+      //   title: "Error",
+      //   description: errorMsg,
+      //   variant: "destructive",
+      //   className: "bg-red-500 text-white font-medium border-l-4 border-red-700"
+      // });
     } finally {
       setIsLoading(false);
     }

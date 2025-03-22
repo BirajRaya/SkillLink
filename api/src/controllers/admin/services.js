@@ -4,7 +4,6 @@ const { createService, getServices, updateService, deleteService, getActiveVendo
 // Add a new service
 const addService = async (req, res) => {
   const { name, description, category_id, vendor_id, price, location, image_url,status } = req.body;
-  console.log(status);
   
 
   if (!name || !category_id || !vendor_id || !price) {
@@ -196,7 +195,6 @@ const fetchServices = async (req, res) => {
     }
     
     client = await pool.connect(); 
-    console.log(userId);
     
     const result = await client.query(
       'SELECT services.*, categories.category_name AS category_name  FROM services JOIN categories ON services.category_id = categories.id  WHERE vendor_id = $1',

@@ -18,10 +18,8 @@ const upload = multer({ storage: storage });
 // Create a dispute
 router.post("/create", async (req, res) => {
     try {
-        console.log(req.body);
         const { user_id, booking_id, reason, description , feedback, user_name, vendor_name, service_name} = req.body; // Ensure `user_id` is sent
         const evidencePath = req.body.evidence ? req.body.evidence : null; // Store file path if uploaded  
-        console.log(evidencePath);
 
         // Insert into database
         const newDispute = await pool.query(

@@ -23,8 +23,7 @@ const checkReview = async (req,res) => {
 
     const { service_id } = req.body;
     const user_id = req.user.id;
-    console.log(service_id);
-    console.log(user_id);   
+      
 
     try {
         const

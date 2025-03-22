@@ -34,7 +34,6 @@ const Dashboard = () => {
           signal: controller.signal,
         });
 
-        console.log(response.data);
 
         // Fix: Check success flag in response.data, not in response
         if (response.data && response.data.success) {

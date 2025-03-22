@@ -331,8 +331,7 @@ const DisputeDashboard = () => {
         {/* Other status tabs */}
         {/* {["accepted", "rejected"].map(status => {
         const disputesList = status == "accepted" ? acceptedDisputes : rejectedDisputes;
-        console.log(status);
-        console.log(disputesList);
+      
         return (
             <TabsContent key={status} value={status}>
             {disputesList.length > 0 ? (

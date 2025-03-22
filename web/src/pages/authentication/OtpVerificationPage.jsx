@@ -31,7 +31,6 @@ const OtpVerificationPage = () => {
     e.preventDefault();
     setLoading(true);
     setError(""); // Reset error message
-  console.log("I m printing",email,otp);
     try {
         const response = await axios.post("http://localhost:5000/otp", {
         email: email,
