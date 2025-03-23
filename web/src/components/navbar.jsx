@@ -1,13 +1,29 @@
 import { useState, useEffect } from "react";
-import { Briefcase, User, LogOut, Settings, Mail, Phone, Lock, Save, X, Eye, EyeOff, Loader2, Calendar, AlertCircle } from "lucide-react";
+import {
+  Briefcase,
+  User,
+  LogOut,
+  Settings,
+  Mail,
+  Phone,
+  Lock,
+  Save,
+  X,
+  Eye,
+  EyeOff,
+  Loader2,
+  Calendar,
+  AlertCircle,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
   Dialog,
@@ -16,11 +32,11 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-  DialogClose
+  DialogClose,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useAuth } from '../utils/AuthContext';
+import { useAuth } from "../utils/AuthContext";
 import axios from "axios";
 import { Home } from "lucide-react";
 
@@ -31,18 +47,20 @@ const Navbar = () => {
   const { currentUser, isAuthenticated, logout, setCurrentUser } = useAuth();
   const [showProfileDialog, setShowProfileDialog] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  const [showPassword, setShowPassword] = useState({});
   const [error, setError] = useState("");
   const [errors, setErrors] = useState({});
+  const { toast } = useToast();
+
   const [profileData, setProfileData] = useState({
-    fullName: '',
-    email: '',
-    phone: '',
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: '',
+    fullName: "",
+    email: "",
+    phone: "",
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
     profilePicture: null,
-    address: ''
+    address: "",
   });
 
   const navLinks = [
@@ -53,7 +71,7 @@ const Navbar = () => {
 
   useEffect(() => {
     // Check the current path and set active page
-    const path = location.pathname.split('/')[1] || "home"; // Default to "home"
+    const path = location.pathname.split("/")[1] || "home"; // Default to "home"
     setActivePage(path);
   }, [location]);
 
@@ -62,21 +80,19 @@ const Navbar = () => {
     if (currentUser) {
       setProfileData({
         ...profileData,
-        fullName: currentUser.fullName || '',
-        email: currentUser.email || '',
-        phone: currentUser.phone || '',
-        address: currentUser.address || '',
-        profilePicture: currentUser.profilePicture
+        fullName: currentUser.fullName || "",
+        email: currentUser.email || "",
+        phone: currentUser.phone || "",
+        address: currentUser.address || "",
+        profilePicture: currentUser.profilePicture,
       });
     }
   }, [currentUser]);
 
-  
-
   // Function to get user's first name from full name
   const getFirstName = () => {
     if (!currentUser || !currentUser.fullName) return "User";
-    return currentUser.fullName.split(' ')[0];
+    return currentUser.fullName.split(" ")[0];
   };
 
   const handleProfileChange = (e) => {
@@ -101,27 +117,18 @@ const Navbar = () => {
 
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
-    if (profileData.newPassword && profileData.newPassword !== profileData.confirmPassword) {
+    if (
+      profileData.newPassword &&
+      profileData.newPassword !== profileData.confirmPassword
+    ) {
       setError("Passwords do not match");
       return;
     }
 
-    // if (profileData.fullName.length < 5) {
-    //   setError("Full Name must be 6 charaacter long");
-    //   return;
-    // }
-
-    // if (id === "address") {
-    //   if (!value.trim()) {
-    //     newErrors.address = "Address is required";
-    //   } else {
-    //     delete newErrors.address;
-    //   }
-    // }
-
     try {
       setIsLoading(true);
-      const response = await axios.post("http://localhost:5000/update-profile",
+      const response = await axios.post(
+        "http://localhost:5000/update-profile",
         {
           fullName: profileData.fullName,
           email: profileData.email,
@@ -130,22 +137,37 @@ const Navbar = () => {
           currentPassword: profileData.currentPassword,
           newPassword: profileData.newPassword,
           confirmPassword: profileData.confirmPassword,
-          address: profileData.address
-        });
+          address: profileData.address,
+        }
+      );
       const updateUser = response.data.user;
       setProfileData(updateUser);
       updateUser.role = currentUser.role;
       updateUser.id = currentUser.id;
       setCurrentUser(updateUser);
-      localStorage.setItem('user', JSON.stringify(updateUser));
+      localStorage.setItem("user", JSON.stringify(updateUser));
       setError("");
-
+      toast({
+        title: "Success",
+        description: "Your profile has been updated successfully!",
+        variant: "success",
+        className:
+          "bg-green-500 text-white font-medium border-l-4 border-green-700",
+      });
+      setShowProfileDialog(false);
     } catch (err) {
-      console.error('profile change error:', err);
+      console.error("profile change error:", err);
       setError(err.response.data.message);
+
+      toast({
+        title: "Error",
+        description: err.response?.data?.message || "Failed to update profile",
+        variant: "destructive",
+        className:
+          "bg-red-500 text-white font-medium border-l-4 border-red-700",
+      });
       return;
-    }
-    finally {
+    } finally {
       setIsLoading(false);
     }
     // Close the dialog after updating
@@ -154,8 +176,7 @@ const Navbar = () => {
   const handleCancel = () => {
     setProfileData(currentUser);
     setError("");
-  }
-
+  };
 
   return (
     <>
@@ -167,7 +188,9 @@ const Navbar = () => {
               <Link to="/">
                 <div className="flex items-center">
                   <Briefcase className="h-8 w-8 text-blue-600" />
-                  <span className="ml-2 text-2xl font-bold text-blue-600">SkillLink</span>
+                  <span className="ml-2 text-2xl font-bold text-blue-600">
+                    SkillLink
+                  </span>
                 </div>
               </Link>
             </div>
@@ -179,10 +202,11 @@ const Navbar = () => {
                   key={link.id}
                   to={link.href}
                   onClick={() => setActivePage(link.id)}
-                  className={`${activePage === link.id
-                    ? "text-blue-600 border-b-2 border-blue-600"
-                    : "text-gray-600 hover:text-blue-600"
-                    } pb-1`}
+                  className={`${
+                    activePage === link.id
+                      ? "text-blue-600 border-b-2 border-blue-600"
+                      : "text-gray-600 hover:text-blue-600"
+                  } pb-1`}
                 >
                   {link.name}
                 </Link>
@@ -194,7 +218,10 @@ const Navbar = () => {
               {isAuthenticated ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="flex items-center space-x-2">
+                    <Button
+                      variant="ghost"
+                      className="flex items-center space-x-2"
+                    >
                       <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
                         <img
                           src={`${currentUser.profilePicture}`}
@@ -202,7 +229,7 @@ const Navbar = () => {
                           className="w-9 h-9 rounded-full object-cover border"
                         />
                       </div>
-                      <span>{currentUser?.fullName || 'User'}</span>
+                      <span>{currentUser?.fullName || "User"}</span>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
@@ -215,24 +242,23 @@ const Navbar = () => {
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       className="flex items-center"
-                      onClick={() => navigate('/bookings')}
+                      onClick={() => navigate("/bookings")}
                     >
                       <Calendar className="mr-2 h-4 w-4" />
                       <span>My Bookings</span>
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       className="flex items-center"
-                      onClick={() => navigate('/dispute')}
+                      onClick={() => navigate("/dispute")}
                     >
                       <AlertCircle className="mr-2 h-4 w-4" />
                       <span>Disputes</span>
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="flex items-center">
-                      <Settings className="mr-2 h-4 w-4" />
-                      <span>Settings</span>
-                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem className="flex items-center text-red-600" onClick={logout}>
+                    <DropdownMenuItem
+                      className="flex items-center text-red-600"
+                      onClick={logout}
+                    >
                       <LogOut className="mr-2 h-4 w-4" />
                       <span>Logout</span>
                     </DropdownMenuItem>
@@ -242,14 +268,20 @@ const Navbar = () => {
                 <>
                   <Button
                     variant="outline"
-                    className={`${activePage === "login" ? "text-blue-600 border-b-2 border-blue-600" : ""
-                      }`}
+                    className={`${
+                      activePage === "login"
+                        ? "text-blue-600 border-b-2 border-blue-600"
+                        : ""
+                    }`}
                   >
                     <Link to="/login">Sign In</Link>
                   </Button>
                   <Button
-                    className={`${activePage === "register" ? " border-b-2 border-blue-600" : ""
-                      }`}
+                    className={`${
+                      activePage === "register"
+                        ? " border-b-2 border-blue-600"
+                        : ""
+                    }`}
                   >
                     <Link to="/register">Sign Up</Link>
                   </Button>
@@ -260,9 +292,9 @@ const Navbar = () => {
         </div>
       </nav>
 
-      {/* Profile Update Dialog */}
+      {/* Profile Update Dialog - Updated for Responsive Design */}
       <Dialog open={showProfileDialog} onOpenChange={setShowProfileDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md w-[95%] mx-auto max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Update Profile</DialogTitle>
             <DialogDescription>
@@ -281,8 +313,19 @@ const Navbar = () => {
                 />
                 <label htmlFor="profilePictureInput">
                   <div className="absolute bottom-1 right-1 bg-gray-800 text-white p-1 rounded-full cursor-pointer hover:bg-gray-700">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13.5V17h3.5l7.5-7.5a2.121 2.121 0 000-3l-3-3a2.121 2.121 0 00-3 0L9 10.5z" />
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15.232 5.232l3.536 3.536M9 13.5V17h3.5l7.5-7.5a2.121 2.121 0 000-3l-3-3a2.121 2.121 0 00-3 0L9 10.5z"
+                      />
                     </svg>
                   </div>
                 </label>
@@ -303,20 +346,25 @@ const Navbar = () => {
                   id="fullName"
                   value={profileData.fullName}
                   onChange={handleProfileChange}
-                  className="pl-10"
+                  className="pl-10 h-10"
                   placeholder="Your full name"
                   pattern="[A-Za-z\s]+"
                   required
                   onBlur={() => {
-                    if (profileData.fullName.length < 5) {
-                      setErrors({ ...errors, fullName: "Full Name must be 6 charaacter long" });
+                    if (profileData.fullName.length < 6) {
+                      setErrors({
+                        ...errors,
+                        fullName: "Full Name must be 6 character long",
+                      });
                       return;
                     } else {
-                      setErrors({ ...errors, fullName: '' })
+                      setErrors({ ...errors, fullName: "" });
                     }
                   }}
                 />
-                {errors.fullName && <p className="mt-1 text-xs text-red-500">{errors.fullName}</p>}
+                {errors.fullName && (
+                  <p className="mt-1 text-xs text-red-500">{errors.fullName}</p>
+                )}
               </div>
             </div>
 
@@ -329,7 +377,7 @@ const Navbar = () => {
                   type="email"
                   value={profileData.email}
                   onChange={handleProfileChange}
-                  className="pl-10 bg-gray-100 cursor-not-allowed"
+                  className="pl-10 bg-gray-100 cursor-not-allowed h-10"
                   placeholder="Your email address"
                   readOnly
                 />
@@ -344,20 +392,25 @@ const Navbar = () => {
                   id="phone"
                   value={profileData.phone}
                   onChange={handleProfileChange}
-                  className="pl-10"
+                  className="pl-10 h-10"
                   placeholder="Your phone number"
                   pattern="\d{10}"
                   required
                   onBlur={() => {
                     if (profileData.phone.length < 10) {
-                      setErrors({ ...errors, phone: "Phone Number Should be 10 Numbers Only" });
+                      setErrors({
+                        ...errors,
+                        phone: "Phone Number Should be 10 Numbers Only",
+                      });
                       return;
                     } else {
-                      setErrors({ ...errors, phone: '' })
+                      setErrors({ ...errors, phone: "" });
                     }
                   }}
-                />{errors.phone && <p className="mt-1 text-xs text-red-500">{errors.phone}</p>}
-
+                />
+                {errors.phone && (
+                  <p className="mt-1 text-xs text-red-500">{errors.phone}</p>
+                )}
               </div>
             </div>
 
@@ -369,23 +422,31 @@ const Navbar = () => {
                   id="address"
                   value={profileData.address}
                   onChange={handleProfileChange}
-                  className="pl-10"
+                  className="pl-10 h-10"
                   placeholder="Your address"
                   required
                   onBlur={() => {
                     if (profileData.address.length < 10) {
-                      setErrors({ ...errors, address: "address Should be minimun 10 words" });
+                      setErrors({
+                        ...errors,
+                        address: "Address Should be minimum 10 words",
+                      });
                       return;
                     } else {
-                      setErrors({ ...errors, address: '' })
+                      setErrors({ ...errors, address: "" });
                     }
                   }}
-                />{errors.address && <p className="mt-1 text-xs text-red-500">{errors.address}</p>}
+                />
+                {errors.address && (
+                  <p className="mt-1 text-xs text-red-500">{errors.address}</p>
+                )}
               </div>
             </div>
 
             <div className="pt-4 border-t">
-              <h4 className="text-sm font-medium mb-3">Change Password (Optional)</h4>
+              <h4 className="text-sm font-medium mb-3">
+                Change Password (Optional)
+              </h4>
 
               <div className="space-y-2">
                 <Label htmlFor="currentPassword">Current Password</Label>
@@ -396,28 +457,47 @@ const Navbar = () => {
                     type={showPassword.currentPassword ? "text" : "password"}
                     value={profileData.currentPassword}
                     onChange={handleProfileChange}
-                    className="pl-10"
+                    className="pl-10 h-10"
                     placeholder="Enter current password"
                     onBlur={() => {
-                      if (profileData.currentPassword.length < 7) {
-                        setErrors({ ...errors, currentPassword: "Current Password Should be minimun 7 character" });
+                      if (
+                        profileData.currentPassword &&
+                        profileData.currentPassword.length < 7
+                      ) {
+                        setErrors({
+                          ...errors,
+                          currentPassword:
+                            "Current Password should be minimum 7 characters",
+                        });
                         return;
                       } else {
-                        setErrors({ ...errors, currentPassword: '' })
+                        setErrors({ ...errors, currentPassword: "" });
                       }
                     }}
-
-                  />{errors.currentPassword && <p className="mt-1 text-xs text-red-500">{errors.currentPassword}</p>}
+                  />
+                  {errors.currentPassword && (
+                    <p className="mt-1 text-xs text-red-500">
+                      {errors.currentPassword}
+                    </p>
+                  )}
                   <button
                     type="button"
-                    onClick={() => setShowPassword(prev => ({ ...prev, currentPassword: !prev.currentPassword }))}
+                    onClick={() =>
+                      setShowPassword((prev) => ({
+                        ...prev,
+                        currentPassword: !prev.currentPassword,
+                      }))
+                    }
                     className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
                   >
-                    {showPassword.currentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showPassword.currentPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
                   </button>
                 </div>
               </div>
-
 
               <div className="space-y-2 mt-2">
                 <Label htmlFor="newPassword">New Password</Label>
@@ -428,24 +508,45 @@ const Navbar = () => {
                     type={showPassword.newPassword ? "text" : "password"}
                     value={profileData.newPassword}
                     onChange={handleProfileChange}
-                    className="pl-10"
+                    className="pl-10 h-10"
                     placeholder="Enter new password (Min 7 char)"
                     minLength={7}
                     onBlur={() => {
-                      if (profileData.newPassword.length < 7) {
-                        setErrors({ ...errors, newPassword: "New Password Should be minimun 7 character" });
+                      if (
+                        profileData.newPassword &&
+                        profileData.newPassword.length < 7
+                      ) {
+                        setErrors({
+                          ...errors,
+                          newPassword:
+                            "New Password should be minimum 7 characters",
+                        });
                         return;
                       } else {
-                        setErrors({ ...errors, newPassword: '' })
+                        setErrors({ ...errors, newPassword: "" });
                       }
                     }}
-                  />{errors.newPassword && <p className="mt-1 text-xs text-red-500">{errors.newPassword}</p>}
+                  />
+                  {errors.newPassword && (
+                    <p className="mt-1 text-xs text-red-500">
+                      {errors.newPassword}
+                    </p>
+                  )}
                   <button
                     type="button"
-                    onClick={() => setShowPassword(prev => ({ ...prev, newPassword: !prev.newPassword }))}
+                    onClick={() =>
+                      setShowPassword((prev) => ({
+                        ...prev,
+                        newPassword: !prev.newPassword,
+                      }))
+                    }
                     className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
                   >
-                    {showPassword.newPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showPassword.newPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
                   </button>
                 </div>
               </div>
@@ -459,38 +560,77 @@ const Navbar = () => {
                     type={showPassword.confirmPassword ? "text" : "password"}
                     value={profileData.confirmPassword}
                     onChange={handleProfileChange}
-                    className="pl-10"
+                    className="pl-10 h-10"
                     placeholder="Confirm new password (Min 7 char)"
                     minLength={7}
                     onBlur={() => {
-                      if (profileData.confirmPassword.length < 7) {
-                        setErrors({ ...errors, confirmPassword: "Current Password Should be minimun 7 character" });
+                      if (
+                        profileData.confirmPassword &&
+                        profileData.confirmPassword.length < 7
+                      ) {
+                        setErrors({
+                          ...errors,
+                          confirmPassword:
+                            "Confirm Password should be minimum 7 characters",
+                        });
+                        return;
+                      } else if (
+                        profileData.newPassword &&
+                        profileData.confirmPassword &&
+                        profileData.newPassword !== profileData.confirmPassword
+                      ) {
+                        setErrors({
+                          ...errors,
+                          confirmPassword: "Passwords do not match",
+                        });
                         return;
                       } else {
-                        setErrors({ ...errors, confirmPassword: '' })
+                        setErrors({ ...errors, confirmPassword: "" });
                       }
                     }}
-                  />{errors.newPassword && <p className="mt-1 text-xs text-red-500">{errors.newPassword}</p>}
+                  />
+                  {errors.confirmPassword && (
+                    <p className="mt-1 text-xs text-red-500">
+                      {errors.confirmPassword}
+                    </p>
+                  )}
                   <button
                     type="button"
-                    onClick={() => setShowPassword(prev => ({ ...prev, confirmPassword: !prev.confirmPassword }))}
+                    onClick={() =>
+                      setShowPassword((prev) => ({
+                        ...prev,
+                        confirmPassword: !prev.confirmPassword,
+                      }))
+                    }
                     className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
                   >
-                    {showPassword.confirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showPassword.confirmPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
                   </button>
                 </div>
               </div>
               {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
             </div>
 
-            <DialogFooter className="flex space-x-2 justify-end pt-4">
+            <DialogFooter className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 justify-end pt-4">
               <DialogClose asChild>
-                <Button type="button" variant="outline" className="flex items-center" onClick={handleCancel}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex items-center w-full sm:w-auto"
+                  onClick={handleCancel}
+                >
                   <X className="mr-2 h-4 w-4" />
                   Cancel
                 </Button>
               </DialogClose>
-              <Button type="submit" className="flex items-center">
+              <Button
+                type="submit"
+                className="flex items-center w-full sm:w-auto"
+              >
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

@@ -1,12 +1,75 @@
-const pool = require('../config/db');
 const bcrypt = require('bcrypt');
+const pool = require('../config/db');
 const { v4: uuidv4 } = require('uuid');
-const fs = require('fs');
-const path = require('path');
 
 class AdminUserService {
-  // Get all users (only regular users)
-  static async getAllUsers() {
+  // Check if email already exists
+  static async checkEmailExists(email) {
+    const client = await pool.connect();
+    try {
+      const result = await client.query(
+        'SELECT COUNT(*) as count FROM users WHERE email = $1',
+        [email]
+      );
+      return result.rows[0].count > 0;
+    } finally {
+      client.release();
+    }
+  }
+
+  // Create new user
+static async createUser(userData) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Check if email already exists
+    const emailExists = await AdminUserService.checkEmailExists(userData.email);
+    if (emailExists) {
+      throw new Error('Email already in use');
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(userData.password, 10);
+    
+    // Prepare profile picture if provided
+    const profilePicture = userData.profilePicture || null;
+    
+    // Insert user
+    const userId = uuidv4();
+    const insertQuery = `
+      INSERT INTO users (
+        id, full_name, email, phone_number, address, 
+        password, profile_picture, is_active, role
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      RETURNING id, full_name, email, phone_number, address, is_active, created_at
+    `;
+    
+    const result = await client.query(insertQuery, [
+      userId,
+      userData.fullName,
+      userData.email,
+      userData.phoneNumber,
+      userData.address,
+      hashedPassword,
+      profilePicture,
+      userData.isActive || 'active',
+      'user'
+    ]);
+    
+    await client.query('COMMIT');
+    return result.rows[0];
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error creating user:', error);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+  // Get all users without full profile pictures
+  static async getAllUsersWithoutPictures() {
     const client = await pool.connect();
     try {
       const query = `
@@ -16,7 +79,10 @@ class AdminUserService {
           email, 
           phone_number, 
           address,
-          profile_picture,
+          CASE 
+            WHEN profile_picture IS NOT NULL THEN 'has-image'
+            ELSE NULL
+          END as profile_picture,
           is_active,
           created_at
         FROM users
@@ -26,101 +92,65 @@ class AdminUserService {
       const result = await client.query(query);
       return result.rows;
     } catch (error) {
-      console.error('Error fetching users:', error);
+      console.error('Error fetching users without pictures:', error);
       throw error;
     } finally {
       client.release();
     }
   }
 
-  // Create user (with hardcoded role as 'user')
-  static async createUser(userData) {
+  // Get a single user's profile picture
+  static async getUserProfilePicture(userId) {
     const client = await pool.connect();
     try {
-      await client.query('BEGIN');
-
-      // Ensure is_active is provided
-      if (userData.isActive === undefined) {
-        throw new Error('Status (active/inactive) is required');
-      }
-
-      // Check if email already exists
-      const emailCheck = await client.query(
-        'SELECT * FROM users WHERE email = $1',
-        [userData.email]
-      );
-      if (emailCheck.rows.length > 0) {
-        throw new Error('Email already exists');
-      }
-
-      // Hash password
-      const hashedPassword = await bcrypt.hash(userData.password, 10);
-
-      // Handle profile picture upload
-      let profilePicturePath = null;
-      if (userData.profilePicture) {
-        const uploadDir = path.join(__dirname, '../uploads');
-        if (!fs.existsSync(uploadDir)) {
-          fs.mkdirSync(uploadDir, { recursive: true });
-        }
-        const filename = `${uuidv4()}-${userData.profilePicture.originalname}`;
-        const filepath = path.join(uploadDir, filename);
-        fs.writeFileSync(filepath, userData.profilePicture.buffer);
-        profilePicturePath = `/uploads/${filename}`;
-      }
-
-      // Insert new user
       const query = `
-        INSERT INTO users (
-          id, 
-          full_name, 
-          email, 
-          password, 
-          phone_number, 
-          address, 
-          role, 
-          is_active,
-          profile_picture
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-        RETURNING id, full_name, email, phone_number, address, is_active, created_at, profile_picture
+        SELECT profile_picture
+        FROM users
+        WHERE id = $1 AND role = 'user'
       `;
-
-      const values = [
-        uuidv4(),
-        userData.fullName,
-        userData.email,
-        hashedPassword,
-        userData.phoneNumber || '',
-        userData.address || '',
-        'user',
-        userData.isActive,
-        profilePicturePath
-      ];
-
-      const result = await client.query(query, values);
-
-      await client.query('COMMIT');
-      return result.rows[0];
+      const result = await client.query(query, [userId]);
+      
+      if (result.rows.length === 0) {
+        throw new Error('User not found or not authorized');
+      }
+      
+      return result.rows[0].profile_picture;
     } catch (error) {
-      await client.query('ROLLBACK');
-      console.error('Error creating user:', error);
+      console.error('Error fetching user profile picture:', error);
       throw error;
     } finally {
       client.release();
     }
   }
 
-  // Update user method
+  // Update user (without profile picture)
   static async updateUser(userId, userData) {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-
-      console.log('Updating user with data:', userData);
-
+      
       // Ensure is_active is provided
       if (userData.isActive === undefined) {
         throw new Error('Status (active/inactive) is required');
+      }
+
+      // Check if email is being changed and if it already exists
+      if (userData.email) {
+        const currentUserQuery = 'SELECT email FROM users WHERE id = $1';
+        const currentUserResult = await client.query(currentUserQuery, [userId]);
+        
+        if (currentUserResult.rows.length === 0) {
+          throw new Error('User not found');
+        }
+        
+        const currentEmail = currentUserResult.rows[0].email;
+        
+        if (currentEmail !== userData.email) {
+          const emailExists = await AdminUserService.checkEmailExists(userData.email);
+          if (emailExists) {
+            throw new Error('Email already in use');
+          }
+        }
       }
 
       // Prepare update fields
@@ -159,20 +189,6 @@ class AdminUserService {
         valueIndex++;
       }
 
-      if (userData.profilePicture) {
-        const uploadDir = path.join(__dirname, '../uploads');
-        if (!fs.existsSync(uploadDir)) {
-          fs.mkdirSync(uploadDir, { recursive: true });
-        }
-        const filename = `${uuidv4()}-${userData.profilePicture.originalname}`;
-        const filepath = path.join(uploadDir, filename);
-        fs.writeFileSync(filepath, userData.profilePicture.buffer);
-        const profilePicturePath = `/uploads/${filename}`;
-        updateFields.push(`profile_picture = $${valueIndex}`);
-        values.push(profilePicturePath);
-        valueIndex++;
-      }
-
       // Add is_active field
       updateFields.push(`is_active = $${valueIndex}`);
       values.push(userData.isActive);
@@ -188,7 +204,7 @@ class AdminUserService {
           ${updateFields.join(', ')}, 
           updated_at = CURRENT_TIMESTAMP
         WHERE id = $${valueIndex} AND role = 'user'
-        RETURNING id, full_name, email, phone_number, address, is_active, profile_picture
+        RETURNING id, full_name, email, phone_number, address, is_active
       `;
 
       const result = await client.query(query, values);
@@ -209,19 +225,22 @@ class AdminUserService {
     }
   }
 
-  // Delete user method
-  static async deleteUser(userId) {
+  // Update user's profile picture (separate method)
+  static async updateUserProfilePicture(userId, profilePicture) {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
 
       const query = `
-        DELETE FROM users 
-        WHERE id = $1 AND role = 'user'
+        UPDATE users 
+        SET 
+          profile_picture = $1,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = $2 AND role = 'user'
         RETURNING id, full_name, email
       `;
 
-      const result = await client.query(query, [userId]);
+      const result = await client.query(query, [profilePicture, userId]);
 
       await client.query('COMMIT');
 
@@ -232,25 +251,44 @@ class AdminUserService {
       return result.rows[0];
     } catch (error) {
       await client.query('ROLLBACK');
-      console.error('Error deleting user:', error);
+      console.error('Error updating profile picture:', error);
       throw error;
     } finally {
       client.release();
     }
   }
 
-  // Check if email exists
-  static async checkEmailExists(email) {
+  // Delete user
+  static async deleteUser(userId) {
     const client = await pool.connect();
     try {
-      const query = `
-        SELECT id FROM users 
-        WHERE email = $1 AND role = 'user'
+      await client.query('BEGIN');
+      
+      // First get user info for return value
+      const selectQuery = `
+        SELECT id, full_name, email
+        FROM users
+        WHERE id = $1 AND role = 'user'
       `;
-      const result = await client.query(query, [email]);
-      return result.rows.length > 0;
+      const selectResult = await client.query(selectQuery, [userId]);
+      
+      if (selectResult.rows.length === 0) {
+        throw new Error('User not found or not authorized');
+      }
+      
+      // Then delete
+      const deleteQuery = `
+        DELETE FROM users
+        WHERE id = $1 AND role = 'user'
+      `;
+      
+      await client.query(deleteQuery, [userId]);
+      await client.query('COMMIT');
+      
+      return selectResult.rows[0];
     } catch (error) {
-      console.error('Error checking email:', error);
+      await client.query('ROLLBACK');
+      console.error('Error deleting user:', error);
       throw error;
     } finally {
       client.release();

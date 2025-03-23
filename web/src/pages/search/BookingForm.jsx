@@ -82,7 +82,7 @@ const BookingForm = ({ service, onBookingComplete }) => {
   };
   
   const getCurrentUsername = () => {
-    return "sudeepbanjade21"; // Use the provided username
+    return "user"; // Use the provided username
   };
 
 

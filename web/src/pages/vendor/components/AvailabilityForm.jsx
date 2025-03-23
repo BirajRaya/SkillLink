@@ -17,7 +17,7 @@ const AvailabilityForm = ({
 }) => {
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-2xl">
+      <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-2xl md:max-w-3xl lg:max-w-4xl">
         <h1 className="text-2xl font-bold text-center mb-6">Complete Your Availability Profile</h1>
         <p className="text-gray-600 text-center mb-8">
           Please provide your availability information to access your vendor dashboard.
@@ -30,7 +30,7 @@ const AvailabilityForm = ({
             <RadioGroup 
               value={availabilityData.status} 
               onValueChange={(value) => handleAvailabilityChange("status", value)}
-              className="flex flex-col space-y-2"
+              className="flex flex-col space-y-2 md:flex-row md:space-y-0 md:space-x-4"
             >
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="available" id="available-initial" />
@@ -55,7 +55,7 @@ const AvailabilityForm = ({
 
           <div className="space-y-4">
             <Label>Which days are you typically available to work?</Label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
               {Object.entries(availabilityData.workingDays).map(([day, checked]) => (
                 <div key={day} className="flex items-center space-x-2">
                   <Checkbox 

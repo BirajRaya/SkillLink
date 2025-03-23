@@ -205,7 +205,6 @@ exports.createBooking = async (req, res) => {
       );
 
       const booking = result.rows[0];
-      console.log(`User ${getUserIdentifier(req.user)} created booking: ID ${booking.id}`);
       
       // Prepare notification data while still in transaction
       const notificationData = await prepareNotificationData(booking.id, client);
@@ -262,7 +261,6 @@ exports.createBooking = async (req, res) => {
 // Get all bookings for the current user
 exports.getUserBookings = async (req, res) => {
   const userId = req.user.id || req.user.userId;
-  console.log(`Getting bookings for user: ${getUserIdentifier(req.user)} (${userId})`);
   
   try {
     const result = await pool.query(
@@ -276,9 +274,7 @@ exports.getUserBookings = async (req, res) => {
        ORDER BY b.booking_date DESC`,
       [userId]
     );
-    
-    console.log(`Found ${result.rows.length} bookings for user ${getUserIdentifier(req.user)}`);
-    
+        
     res.status(200).json({
       success: true,
       bookings: result.rows
@@ -296,7 +292,6 @@ exports.getUserBookings = async (req, res) => {
 // Get all bookings for a vendor
 exports.getVendorBookings = async (req, res) => {
   const vendorId = req.user.id || req.user.userId;
-  console.log(`Getting bookings for vendor: ${getUserIdentifier(req.user)} (${vendorId})`);
   
   try {
     const result = await pool.query(
@@ -310,9 +305,7 @@ exports.getVendorBookings = async (req, res) => {
        ORDER BY b.booking_date DESC`,
       [vendorId]
     );
-    
-    console.log(`Vendor ${getUserIdentifier(req.user)} fetched ${result.rows.length} bookings`);
-    
+        
     res.status(200).json({
       success: true,
       bookings: result.rows
@@ -349,7 +342,6 @@ exports.checkServiceBooking = async (req, res) => {
         booking: result.rows[0]
       });
     } else {
-      console.log(`No booking found for service ${serviceId}`);
       res.status(200).json({
         success: true,
         hasBooking: false,
@@ -415,9 +407,7 @@ exports.getBookingById = async (req, res) => {
 exports.cancelBooking = async (req, res) => {
   const userId = req.user?.id || req.user?.userId;
   const { bookingId } = req.params;
-  
-  console.log(`[2025-03-15 18:49:04] User ${getUserIdentifier(req.user)} attempting to cancel booking ${bookingId}`);
-  
+    
   if (!userId) {
     return res.status(401).json({
       success: false,
@@ -462,7 +452,6 @@ exports.cancelBooking = async (req, res) => {
     }
     
     // Update the booking status
-    console.log(`[2025-03-15 18:49:04] Updating booking ${bookingId} status to 'cancelled'`);
     const updateResult = await pool.query(
       `UPDATE bookings 
        SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP 

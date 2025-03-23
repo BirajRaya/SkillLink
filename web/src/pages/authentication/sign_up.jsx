@@ -208,7 +208,7 @@ const SignupPage = () => {
                               onChange={handleChange}
                               pattern="[A-Za-z\s]+"
                               title="Enter Letters Only"
-                              minLength={5}
+                              minLength={6}
                               required
                             />
                           </div>
@@ -285,6 +285,7 @@ const SignupPage = () => {
                             value={formData.address}
                             onChange={handleChange}
                             required
+                            minLength={10}
                           />
                         </div>
                       </div>

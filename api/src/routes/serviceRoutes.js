@@ -29,6 +29,7 @@ const authenticateJWT = (req, res, next) => {
 };
 
 
+
 // Existing routes
 router.get('/user/:userId', fetchServices);
 router.post('/add-service', addService);
@@ -38,6 +39,25 @@ router.delete('/delete-service/:id', deleteServiceById);
 router.get('/active', getAllActiveCategories);
 router.get('/users/vendors', getAllActiveVendors);
 
+// endpoint to get individual service image
+router.get('/:id/image', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      "SELECT image_url FROM services WHERE id = $1",
+      [id]
+    );
+
+    if (result.rows.length === 0 || !result.rows[0].image_url) {
+      return res.status(404).json({ message: "Image not found" });
+    }
+
+    res.json({ image: result.rows[0].image_url });
+  } catch (err) {
+    console.error("Error fetching service image:", err.message);
+    res.status(500).json({ error: "Server error" });
+  }
+});
 
 // Get services created by a specific user/vendor
 router.get('/user/:userId', authenticateJWT, async (req, res) => {
@@ -385,6 +405,41 @@ router.delete('/:serviceId/reviews/:reviewId', authenticateJWT, async (req, res)
   } catch (error) {
     console.error('Error deleting review:', error);
     res.status(500).json({ message: 'An error occurred while deleting your review' });
+  }
+});
+
+// this endpoint returns complete image URLs
+router.get('/user/:userId', async (req, res) => {
+  const { userId } = req.params;
+  
+  try {
+    // For vendors, return their created services WITH COMPLETE IMAGE URLS
+    const result = await pool.query(
+      `SELECT s.*, 
+       c.category_name,
+       COALESCE(AVG(r.rating), 0) AS average_rating,
+       COUNT(r.id) AS review_count
+       FROM services s
+       LEFT JOIN categories c ON s.category_id = c.id
+       LEFT JOIN reviews r ON s.id = r.service_id
+       WHERE s.vendor_id = $1
+       GROUP BY s.id, c.category_name
+       ORDER BY s.created_at DESC`,
+      [userId]
+    );
+    
+    // Return services with full image URLs
+    return res.status(200).json({
+      success: true,
+      services: result.rows
+    });
+  } catch (error) {
+    console.error(`Error fetching user services:`, error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch services',
+      error: error.message
+    });
   }
 });
 

@@ -29,10 +29,17 @@ const navItems = [
   { icon: Mails, label: 'Messages', path: '/admin-dashboard/chat' },
 ];
 
-const Sidebar = () => {
+const Sidebar = ({ closeSidebar, isMobile }) => {
   const { logout, currentUser } = useAuth();
   const location = useLocation();
   const [totalUnreadMessages, setTotalUnreadMessages] = useState(0);
+
+  // Handle link click for mobile view
+  const handleLinkClick = () => {
+    if (isMobile) {
+      closeSidebar();
+    }
+  };
 
   useEffect(() => {
     if (!currentUser?.id) return;
@@ -79,15 +86,15 @@ const Sidebar = () => {
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="fixed left-0 top-0 w-64 h-screen bg-white border-r flex flex-col shadow-sm">
+      <div className="w-64 h-screen bg-white border-r flex flex-col shadow-sm overflow-hidden">
         {/* Logo Header */}
         <div className="h-16 border-b">
-            <div className="ml-7 flex items-baseline space-x-1.1 mt-5">
-                <h1 className="text-lg font-bold text-blue-700">SkillLink</h1>
-                <span className="mx-1 text-gray-300">|</span>
-                <p className="text-xs font-medium text-gray-700">Admin Dashboard</p>
-              </div>
+          <div className="ml-7 flex items-baseline space-x-1.1 mt-5">
+            <h1 className="text-lg font-bold text-blue-700">SkillLink</h1>
+            <span className="mx-1 text-gray-300">|</span>
+            <p className="text-xs font-medium text-gray-700">Admin Dashboard</p>
           </div>
+        </div>
 
         
         {/* Main Navigation */}
@@ -102,6 +109,7 @@ const Sidebar = () => {
                   <TooltipTrigger asChild>
                     <Link
                       to={path}
+                      onClick={handleLinkClick}
                       className={cn(
                         'flex items-center justify-between px-3 py-2 rounded-md mb-1 group transition-colors',
                         location.pathname === path 
@@ -137,6 +145,7 @@ const Sidebar = () => {
                   <TooltipTrigger asChild>
                     <Link
                       to={path}
+                      onClick={handleLinkClick}
                       className={cn(
                         'flex items-center justify-between px-3 py-2 rounded-md mb-1 group transition-colors',
                         location.pathname === path 
@@ -172,6 +181,7 @@ const Sidebar = () => {
                   <TooltipTrigger asChild>
                     <Link
                       to={path}
+                      onClick={handleLinkClick}
                       className={cn(
                         'flex items-center justify-between px-3 py-2 rounded-md mb-1 group transition-colors',
                         location.pathname === path 
@@ -207,6 +217,7 @@ const Sidebar = () => {
                   <TooltipTrigger asChild>
                     <Link
                       to={path}
+                      onClick={handleLinkClick}
                       className={cn(
                         'flex items-center justify-between px-3 py-2 rounded-md mb-1 group transition-colors',
                         location.pathname === path 
@@ -240,8 +251,6 @@ const Sidebar = () => {
           </div>
         </div>
 
-
-        
         {/* User Profile */}
         <div className="p-3 border-t">
           <DropdownMenu>
@@ -258,7 +267,6 @@ const Sidebar = () => {
               </div>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-    
               <DropdownMenuSeparator />
               <DropdownMenuItem 
                 className="text-red-600 cursor-pointer focus:text-red-600 text-xs" 
