@@ -1,5 +1,5 @@
 const pool = require('../../config/db');
-const { get } = require('../../routes/categoriesRoutes');
+// const { get } = require('../../routes/categoriesRoutes');
 const { createCategory, getCategories, updateCategory, deleteCategory } = require('./adminQueries');
 
 // Add a new category

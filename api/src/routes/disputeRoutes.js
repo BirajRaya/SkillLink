@@ -48,14 +48,26 @@ router.get("/user", async (req, res) => {
             const adminDisputes = await pool.query(
                 "SELECT * FROM dispute"
             );
+            
+            // Optimize response by replacing evidence with 'has-evidence' indicator
+            const optimizedDisputes = adminDisputes.rows.map(dispute => {
+                if (dispute.evidence) {
+                    return {
+                        ...dispute,
+                        evidence: 'has-evidence' // Replace actual image data with indicator
+                    };
+                }
+                return dispute;
+            });
+            
             res.json({
-                disputes: adminDisputes.rows,
-                total: parseInt(adminDisputes.rows[0].count),
+                disputes: optimizedDisputes,
+                total: adminDisputes.rows.length,
                 page,
                 limit,
             });
-            return
-            }
+            return;
+        }
 
         if (!user_id) {
             return res.status(400).json({ error: "User ID is required" });
@@ -80,13 +92,19 @@ router.get("/user", async (req, res) => {
             statusFilter ? [user_id, statusFilter] : [user_id]
         );
 
-
-        
-
-    
+        // Optimize response by replacing evidence with 'has-evidence' indicator
+        const optimizedDisputes = disputes.rows.map(dispute => {
+            if (dispute.evidence) {
+                return {
+                    ...dispute,
+                    evidence: 'has-evidence' // Replace actual image data with indicator
+                };
+            }
+            return dispute;
+        });
 
         res.json({
-            disputes: disputes.rows,
+            disputes: optimizedDisputes,
             total: parseInt(totalDisputes.rows[0].count),
             page,
             limit,
@@ -96,6 +114,26 @@ router.get("/user", async (req, res) => {
         res.status(500).json({ error: "Server error" });
     }
 });
+
+// Add this new endpoint to get individual dispute evidence
+router.get("/:id/evidence", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const result = await pool.query(
+        "SELECT evidence FROM dispute WHERE id = $1",
+        [id]
+      );
+  
+      if (result.rows.length === 0 || !result.rows[0].evidence) {
+        return res.status(404).json({ message: "Evidence not found" });
+      }
+  
+      res.json({ evidence: result.rows[0].evidence });
+    } catch (err) {
+      console.error("Error fetching dispute evidence:", err.message);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
 
 // Update dispute status (Admin action)
 router.put("/updates/:id", async (req, res) => {

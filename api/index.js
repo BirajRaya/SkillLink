@@ -63,12 +63,6 @@ app.use((err, req, res, next) => {
 
 // Catch-all route for undefined routes
 app.use((req, res) => {
-  console.log('Unhandled route:', {
-    method: req.method,
-    path: req.path,
-    body: req.body,
-    headers: req.headers
-  });
 
   res.status(404).json({ 
     message: 'Route not found',
@@ -111,7 +105,6 @@ const io = new Server(server, {
 const onlineUsers = new Map();
 
 io.on("connection", (socket) => {
-  console.log("A user connected:", socket.id);
   let currentUserId = null;
 
   socket.on("joinChat", async (userId) => {
@@ -127,13 +120,11 @@ io.on("connection", (socket) => {
     onlineUsers.set(userId, socket.id);
     await redisClient.set(`user:${userId}:online`, "true", { EX: 3600 });
     
-    console.log(`User ${userId} joined with socket ID: ${socket.id}`);
   });
 
   socket.on("sendMessage", async ({ senderId, receiverId, message }) => {
     if (!senderId || !receiverId) return;
     
-    console.log(`Message from ${senderId} to ${receiverId}: ${message}`);
     
     // Increment unread count in Redis
     const unreadKey = `unread:${receiverId}`;
@@ -187,13 +178,11 @@ io.on("connection", (socket) => {
   });
 
   socket.on("disconnect", async () => {
-    console.log("User disconnected:", socket.id);
     
     if (currentUserId && onlineUsers.get(currentUserId) === socket.id) {
       // Only remove if this socket is the current one for the user
       onlineUsers.delete(currentUserId);
       await redisClient.del(`user:${currentUserId}:online`);
-      console.log(`User ${currentUserId} is now offline`);
     }
   });
 });

@@ -1,4 +1,3 @@
-/* eslint-disable no-unused-vars */
 // VendorDashboard.jsx - Main component file
 import { useState, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
@@ -12,7 +11,8 @@ import {
   Settings,
   Clock,
   HelpCircle,
-  LogOut
+  LogOut,
+  X
 } from "lucide-react";
 
 // Component imports
@@ -49,11 +49,40 @@ const VendorDashboard = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
   const [showAvailabilityForm, setShowAvailabilityForm] = useState(false);
   const [hasFilledAvailability, setHasFilledAvailability] = useState(false);
   const [showNewServiceDialog, setShowNewServiceDialog] = useState(false);
   const [showAlertDialog, setShowAlertDialog] = useState(false);
   const { toast } = useToast();
+
+  // Check if screen is mobile
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+      if (window.innerWidth < 768) {
+        setSidebarOpen(false);
+      } else {
+        setSidebarOpen(true);
+      }
+    };
+
+    // Set initial values
+    handleResize();
+    
+    // Add event listener
+    window.addEventListener('resize', handleResize);
+    
+    // Remove event listener on cleanup
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Close sidebar on tab selection on mobile
+  useEffect(() => {
+    if (isMobile) {
+      setSidebarOpen(false);
+    }
+  }, [activeTab, isMobile]);
 
   const [availabilityData, setAvailabilityData] = useState({
     status: "available", // available, partially-available, unavailable
@@ -124,8 +153,6 @@ const VendorDashboard = () => {
         setLoading(true);
 
         const response = await axios.get(`http://localhost:5000/vendors/dashboard-stats/${currentUser.id}`);
-        console.log('currentuser stats:', currentUser.id);
-        console.log('Dashboard stats:', response.data);
         if (response.data && response.data.success) {
           setDashboardStats(response.data.dashboardStats);
         }
@@ -187,7 +214,6 @@ const VendorDashboard = () => {
           variant: "destructive", // Red background
           className: "bg-red-500 text-white font-medium border-l-4 border-red-700"
         });
-
       }
     };
 
@@ -414,7 +440,8 @@ const VendorDashboard = () => {
       formatCurrency,
       getStatusColor,
       isLoading,
-      setActiveTab
+      setActiveTab,
+      isMobile
     };
 
     switch (activeTab) {
@@ -429,6 +456,7 @@ const VendorDashboard = () => {
             handleAvailabilitySubmit={handleAvailabilitySubmit}
             isLoading={isLoading}
             setActiveTab={setActiveTab}
+            isMobile={isMobile}
           />
         );
       case "services":
@@ -436,18 +464,19 @@ const VendorDashboard = () => {
           <ServicesTab
             setShowNewServiceDialog={setShowNewServiceDialog}
             serviceInsights={serviceInsights} 
-            formatCurrency={formatCurrency} 
+            formatCurrency={formatCurrency}
+            isMobile={isMobile}
             {...commonProps}
           />
         );
       case "bookings":
         return <BookingsTab {...commonProps} />;
       case "messages":
-        return <MessagesTab />;
+        return <MessagesTab isMobile={isMobile} />;
       case "stats":
         return <StatsTab {...commonProps} />;
       case "support":
-        return <SupportTab />;
+        return <SupportTab isMobile={isMobile} />;
       default:
         return <div>Select a tab from the sidebar</div>;
     }
@@ -462,12 +491,13 @@ const VendorDashboard = () => {
         handleWorkingDayChange={handleWorkingDayChange}
         handleAvailabilitySubmit={handleAvailabilitySubmit}
         isLoading={isLoading}
+        isMobile={isMobile}
       />
     );
   }
 
   return (
-    <div className="bg-gray-100 flex flex-col">
+    <div className="bg-gray-100 flex flex-col h-screen">
       {/* Dashboard Header with Profile Actions */}
       <Header
         currentUser={currentUser}
@@ -477,20 +507,46 @@ const VendorDashboard = () => {
         setShowProfileDialog={setShowProfileDialog}
         setActiveTab={setActiveTab}
         logout={logout}
+        isMobile={isMobile}
       />
 
       {/* Main content with sidebar */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
-        <Sidebar
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          sidebarOpen={sidebarOpen}
-          availabilityData={mainAvailabilityData}
-        />
+        {/* Mobile sidebar backdrop */}
+        {isMobile && sidebarOpen && (
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 z-20"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+        
+        {/* Sidebar - Now responsive */}
+        <div 
+          className={`${
+            sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          } fixed md:relative z-30 md:z-auto h-full transition-transform duration-300 ease-in-out md:translate-x-0 border-r border-gray-200 dark:border-gray-800`}
+        >
+          <Sidebar
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            sidebarOpen={sidebarOpen}
+            availabilityData={mainAvailabilityData}
+            isMobile={isMobile}
+          />
+          
+          {/* Close sidebar button for mobile */}
+          {isMobile && (
+            <button 
+              className="absolute top-2 right-2 p-2 rounded-full bg-gray-200 text-gray-600 hover:bg-gray-300"
+              onClick={() => setSidebarOpen(false)}
+            >
+              <X size={18} />
+            </button>
+          )}
+        </div>
 
-        {/* Main content area */}
-        <div className="flex-1 overflow-auto p-4 md:p-6">
+        {/* Main content area - now responsive */}
+        <div className={`flex-1 overflow-auto p-3 sm:p-4 md:p-6 ${isMobile ? 'w-full' : ''}`}>
           {renderContent()}
         </div>
       </div>
@@ -506,6 +562,7 @@ const VendorDashboard = () => {
         handleCancel={handleCancel}
         isLoading={isLoading}
         error={error}
+        isMobile={isMobile}
       />
 
       <NewServiceDialog
@@ -516,11 +573,13 @@ const VendorDashboard = () => {
         handleSubmitNewService={handleSubmitNewService}
         isLoading={isLoading}
         error={error}
+        isMobile={isMobile}
       />
 
       <SuccessAlertDialog
         showAlertDialog={showAlertDialog}
         setShowAlertDialog={setShowAlertDialog}
+        isMobile={isMobile}
       />
     </div>
   );

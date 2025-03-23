@@ -49,8 +49,8 @@ const ResetPasswordPage = () => {
     }
 
     // Validate password strength
-    if (formData.password.length < 8) {
-      setError("Password must be at least 8 characters long");
+    if (formData.password.length < 7) {
+      setError("Password must be at least 7 characters long");
       setLoading(false);
       return;
     }

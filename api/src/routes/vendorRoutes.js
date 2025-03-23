@@ -3,6 +3,85 @@ const router = express.Router();
 const pool = require('../config/db');
 const { addVendor, getAllVendors, updateVendorById, deleteVendorById } = require('../controllers/admin/vendors');
 
+const multer = require('multer');
+const upload = multer({ 
+    storage: multer.memoryStorage(),
+    limits: {
+      fileSize: 5 * 1024 * 1024 // 5MB file size limit
+    }
+  });
+
+  // Get a vendor's profile picture
+router.get('/:id/profile-picture', async (req, res) => {
+    try {
+      const vendorId = req.params.id;
+      
+      const client = await pool.connect();
+      try {
+        const query = `
+          SELECT profile_picture
+          FROM users
+          WHERE id = $1 AND role = 'vendor'
+        `;
+        
+        const result = await client.query(query, [vendorId]);
+        
+        if (result.rows.length === 0 || !result.rows[0].profile_picture) {
+          return res.status(404).json({ message: 'Profile picture not found' });
+        }
+        
+        res.json({ profilePicture: result.rows[0].profile_picture });
+      } finally {
+        client.release();
+      }
+    } catch (error) {
+      console.error('Error fetching vendor profile picture:', error);
+      res.status(500).json({ message: 'Server error fetching profile picture' });
+    }
+  });
+
+  router.post('/:id/profile-picture', upload.single('profilePicture'), async (req, res) => {
+    try {
+      const vendorId = req.params.id;
+      
+      if (!req.file) {
+        return res.status(400).json({ message: 'No profile picture provided' });
+      }
+      
+      // Convert the file buffer to base64
+      const profilePicture = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+      
+      const client = await pool.connect();
+      try {
+        // Update just the profile picture
+        const query = `
+          UPDATE users 
+          SET profile_picture = $1, updated_at = CURRENT_TIMESTAMP
+          WHERE id = $2 AND role = 'vendor'
+          RETURNING id, full_name, email
+        `;
+        
+        const result = await client.query(query, [profilePicture, vendorId]);
+        
+        if (result.rows.length === 0) {
+          return res.status(404).json({ message: 'Vendor not found' });
+        }
+        
+        res.json({
+          message: 'Profile picture updated successfully',
+          vendor: result.rows[0]
+        });
+        
+      } finally {
+        client.release();
+      }
+      
+    } catch (error) {
+      console.error('Error updating vendor profile picture:', error);
+      res.status(500).json({ message: 'Server error updating profile picture' });
+    }
+  });
+
 // Save vendor availability
 router.post('/update-availability', async (req, res) => {
     try {
@@ -380,5 +459,7 @@ router.put('/update-vendor/:id', updateVendorById);
 
 // Route to delete a vendor by ID
 router.delete('/delete-vendor/:id', deleteVendorById);
+
+
 
 module.exports = router;

@@ -212,7 +212,6 @@ const sendBookingStatusNotification = async (bookingData) => {
       throw new Error('Missing email addresses for notification');
     }
 
-    console.log(`[2025-03-15 18:41:46] Sending ${bookingData.status} booking notifications for booking #${bookingData.bookingId}`);
     
     // Create transporter
     const transporter = createTransporter();
@@ -243,10 +242,6 @@ const sendBookingStatusNotification = async (bookingData) => {
       text: vendorEmailContent.text
     };
     
-    console.log(`[2025-03-15 18:41:46] Prepared emails for booking #${bookingData.bookingId}:`, {
-      userEmail: bookingData.user.email,
-      vendorEmail: bookingData.vendor.email
-    });
     
     // Send both emails
     const sendPromises = [
@@ -259,7 +254,6 @@ const sendBookingStatusNotification = async (bookingData) => {
             });
             reject(err);
           } else {
-            console.log(`[2025-03-15 18:41:46] User email sent successfully for booking #${bookingData.bookingId}`);
             resolve(info);
           }
         });
@@ -273,7 +267,6 @@ const sendBookingStatusNotification = async (bookingData) => {
             });
             reject(err);
           } else {
-            console.log(`[2025-03-15 18:41:46] Vendor email sent successfully for booking #${bookingData.bookingId}`);
             resolve(info);
           }
         });
@@ -299,7 +292,6 @@ const sendBookingStatusNotification = async (bookingData) => {
  */
 const sendBookingStatusNotificationSendGrid = async (bookingData) => {
   try {
-    console.log(`[2025-03-15 18:41:46] Sending ${bookingData.status} booking notifications via SendGrid API for booking #${bookingData.bookingId}`);
     
     // Generate user email content
     const userEmailContent = generateEmailContent(bookingData, 'user');

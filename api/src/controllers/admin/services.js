@@ -32,7 +32,33 @@ const getAllServices = async (req, res) => {
   let client;
   try {
     client = await pool.connect();
-    const result = await getServices(client);
+    
+    // Modified query to return 'has-image' instead of full base64 data
+    const optimizedQuery = `
+      SELECT 
+        s.id, 
+        s.name, 
+        s.description, 
+        s.vendor_id,
+        s.category_id,
+        c.category_name, 
+        u.full_name AS vendor_name, 
+        s.price, 
+        s.location, 
+        s.status, 
+        CASE 
+          WHEN s.image_url IS NOT NULL THEN 'has-image'
+          ELSE NULL
+        END as image_url,
+        s.created_at, 
+        s.updated_at
+      FROM services s
+      JOIN categories c ON s.category_id = c.id
+      JOIN users u ON s.vendor_id = u.id
+      ORDER BY s.created_at DESC
+    `;
+    
+    const result = await client.query(optimizedQuery);
     if (result.rows.length === 0) {
       return res.status(404).json({ message: 'No services found' });
     }

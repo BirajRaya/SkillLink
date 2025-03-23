@@ -36,9 +36,7 @@ router.get("/unreadMessages/:userId", async (req, res) => {
         // Get unread messages from Redis
         const unreadKey = `unread:${userId}`;
         const unreadCounts = await redisClient.hGetAll(unreadKey);
-        
-        console.log(`Unread counts for user ${userId}:`, unreadCounts);
-        res.json(unreadCounts || {});
+                res.json(unreadCounts || {});
     } catch (error) {
         console.error("Error fetching unread counts:", error);
         res.status(500).json({ error: error.message });
@@ -163,9 +161,7 @@ router.get("/contacts/:userId", async (req, res) => {
         
         return res.json(contactsWithUpdatedCounts);
       }
-      
-      console.log("Cache Miss! Fetching contacts from PostgreSQL...");
-      
+            
       // Optimized SQL query
       const query = `
       SELECT DISTINCT 
@@ -189,9 +185,7 @@ router.get("/contacts/:userId", async (req, res) => {
       ORDER BY m.created_at DESC NULLS LAST;
       `;
   
-      console.time("Database Query - Contacts");
       const { rows } = await pool.query(query, [userId]);
-      console.timeEnd("Database Query - Contacts");
       
       // Get unread messages from Redis
       const unreadKey = `unread:${userId}`;

@@ -179,11 +179,33 @@ const createVendor = async (client, vendorData) => {
 // Get all vendors
 const getVendors = async (client) => {
   const query = `
-    SELECT * FROM users
+    SELECT 
+      id, 
+      full_name, 
+      email, 
+      phone_number, 
+      address,
+      CASE 
+        WHEN profile_picture IS NOT NULL THEN 'has-image'
+        ELSE NULL
+      END as profile_picture,
+      is_active,
+      created_at
+    FROM users
     WHERE role = 'vendor'
-    ORDER BY id DESC
+    ORDER BY created_at DESC
   `;
   return await client.query(query);
+};
+
+// New function to get a single vendor's profile picture
+const getVendorProfilePicture = async (client, vendorId) => {
+  const query = `
+    SELECT profile_picture
+    FROM users
+    WHERE id = $1 AND role = 'vendor'
+  `;
+  return await client.query(query, [vendorId]);
 };
 
 // Update vendor
