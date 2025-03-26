@@ -33,12 +33,21 @@ const Categories = () => {
   const { toast } = useToast();
   // State for tracking viewing descriptions (modal approach)
   const [viewingDescription, setViewingDescription] = useState(null);
+  const [expandedDescriptions, setExpandedDescriptions] = useState({});
+
 
   // Form validation states
   const [errors, setErrors] = useState({
     categoryName: "",
     description: "",
   });
+
+  const toggleDescription = (categoryId) => {
+    setExpandedDescriptions(prev => ({
+      ...prev,
+      [categoryId]: !prev[categoryId]
+    }));
+  };
 
   // Add debounced search like in Users page
   useEffect(() => {
@@ -459,18 +468,30 @@ const Categories = () => {
                       </div>
                     </td>
                     <td className="px-3 sm:px-6 py-3 sm:py-4">
-                      <div className="text-xs sm:text-sm text-gray-900 max-w-[150px] sm:max-w-[300px] truncate">
+                      <div className="text-xs sm:text-sm text-gray-900 max-w-[150px] sm:max-w-[300px]">
                         {category.description.length > 50 ? (
                           <>
-                            {truncateText(category.description, 50)}
-                            <button
-                              className="text-blue-600 ml-1 text-xs hover:underline focus:outline-none"
-                              onClick={() =>
-                                setViewingDescription(category.description)
-                              }
-                            >
-                              View more
-                            </button>
+                            {expandedDescriptions[category.id] ? (
+                              <>
+                                {category.description}
+                                <button
+                                  className="text-blue-600 ml-1 text-xs hover:underline focus:outline-none"
+                                  onClick={() => toggleDescription(category.id)}
+                                >
+                                  See less
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                {truncateText(category.description, 50)}
+                                <button
+                                  className="text-blue-600 ml-1 text-xs hover:underline focus:outline-none"
+                                  onClick={() => toggleDescription(category.id)}
+                                >
+                                  See more
+                                </button>
+                              </>
+                            )}
                           </>
                         ) : (
                           category.description

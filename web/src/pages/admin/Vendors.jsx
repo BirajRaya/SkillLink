@@ -200,18 +200,63 @@ const Vendors = () => {
   };
 
   // Fetch vendors from backend
+  // const fetchVendors = async () => {
+  //   setIsLoading(true);
+  //   try {
+  //     const controller = new AbortController();
+  //     const timeoutId = setTimeout(() => controller.abort(), 100000);
+
+  //     const response = await api.get("/vendors/getAllVendors", {
+  //       signal: controller.signal,
+  //     });
+
+  //     clearTimeout(timeoutId);
+
+  //     if (response && response.data) {
+  //       setVendors(response.data);
+  //       setTotalVendors(response.data.length);
+  //     } else {
+  //       throw new Error("No data received from the server.");
+  //     }
+  //   } catch (error) {
+  //     let errorMsg = "Failed to fetch vendors";
+
+  //     if (error.name === "AbortError" || error.code === "ECONNABORTED") {
+  //       errorMsg =
+  //         "Request timed out while loading vendors. Please refresh the page.";
+  //     } else if (error.response?.data?.message) {
+  //       errorMsg = error.response.data.message;
+  //     } else if (error.message) {
+  //       errorMsg = error.message;
+  //     }
+
+  //     setMessage({
+  //       type: "error",
+  //       text: errorMsg,
+  //     });
+
+  //     toast({
+  //       title: "Error",
+  //       description: errorMsg,
+  //       variant: "destructive",
+  //     });
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // };
+
   const fetchVendors = async () => {
     setIsLoading(true);
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 100000);
-
+  
       const response = await api.get("/vendors/getAllVendors", {
         signal: controller.signal,
       });
-
+  
       clearTimeout(timeoutId);
-
+  
       if (response && response.data) {
         setVendors(response.data);
         setTotalVendors(response.data.length);
@@ -219,22 +264,39 @@ const Vendors = () => {
         throw new Error("No data received from the server.");
       }
     } catch (error) {
+      // Specifically handle 404 with "No vendors found"
+      if (error.response && error.response.status === 404 && 
+          error.response.data.message === 'No vendors found') {
+        // This is not really an error, just no vendors exist
+        setVendors([]);
+        setTotalVendors(0);
+        
+        // Optional: Show an informative message
+        toast({
+          title: "No Vendors",
+          description: "There are currently no vendors in the system.",
+          variant: "default" // or use a different variant that fits your design
+        });
+        
+        return; // Exit the catch block
+      }
+  
+      // Handle other types of errors
       let errorMsg = "Failed to fetch vendors";
-
+  
       if (error.name === "AbortError" || error.code === "ECONNABORTED") {
-        errorMsg =
-          "Request timed out while loading vendors. Please refresh the page.";
+        errorMsg = "Request timed out while loading vendors. Please refresh the page.";
       } else if (error.response?.data?.message) {
         errorMsg = error.response.data.message;
       } else if (error.message) {
         errorMsg = error.message;
       }
-
+  
       setMessage({
         type: "error",
         text: errorMsg,
       });
-
+  
       toast({
         title: "Error",
         description: errorMsg,
