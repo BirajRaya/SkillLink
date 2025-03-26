@@ -217,18 +217,58 @@ const Services = () => {
   };
 
   // Fetch services from backend
+  // const fetchServices = async () => {
+  //   setIsLoading(true);
+  //   try {
+  //     const controller = new AbortController();
+  //     const timeoutId = setTimeout(() => controller.abort(), 40000);
+
+  //     const response = await api.get("/services/getAllServices", {
+  //       signal: controller.signal,
+  //     });
+
+  //     clearTimeout(timeoutId);
+
+  //     if (response && response.data) {
+  //       setServices(response.data);
+  //       setTotalServices(response.data.length);
+  //     } else {
+  //       throw new Error("No data received from the server.");
+  //     }
+  //   } catch (error) {
+  //     let errorMsg = "Failed to fetch services";
+
+  //     if (error.name === "AbortError" || error.code === "ECONNABORTED") {
+  //       errorMsg =
+  //         "Request timed out while loading services. Please refresh the page.";
+  //     } else if (error.response?.data?.message) {
+  //       errorMsg = error.response.data.message;
+  //     } else if (error.message) {
+  //       errorMsg = error.message;
+  //     }
+
+  //     toast({
+  //       title: "Error",
+  //       description: errorMsg,
+  //       variant: "destructive",
+  //     });
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // };
+
   const fetchServices = async () => {
     setIsLoading(true);
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 40000);
-
+      const timeoutId = setTimeout(() => controller.abort(), 100000);
+  
       const response = await api.get("/services/getAllServices", {
         signal: controller.signal,
       });
-
+  
       clearTimeout(timeoutId);
-
+  
       if (response && response.data) {
         setServices(response.data);
         setTotalServices(response.data.length);
@@ -236,17 +276,39 @@ const Services = () => {
         throw new Error("No data received from the server.");
       }
     } catch (error) {
+      // Specifically handle 404 with "No services found"
+      if (error.response && error.response.status === 404 && 
+          error.response.data.message === 'No services found') {
+        // This is not really an error, just no services exist
+        setServices([]);
+        setTotalServices(0);
+        
+        // Optional: Show an informative message
+        toast({
+          title: "No Services",
+          description: "There are currently no services in the system.",
+          variant: "default" // or use a different variant that fits your design
+        });
+        
+        return; // Exit the catch block
+      }
+  
+      // Handle other types of errors
       let errorMsg = "Failed to fetch services";
-
+  
       if (error.name === "AbortError" || error.code === "ECONNABORTED") {
-        errorMsg =
-          "Request timed out while loading services. Please refresh the page.";
+        errorMsg = "Request timed out while loading services. Please refresh the page.";
       } else if (error.response?.data?.message) {
         errorMsg = error.response.data.message;
       } else if (error.message) {
         errorMsg = error.message;
       }
-
+  
+      setMessage({
+        type: "error",
+        text: errorMsg,
+      });
+  
       toast({
         title: "Error",
         description: errorMsg,
@@ -849,7 +911,6 @@ const Services = () => {
                     </td>
                     <td className="px-3 sm:px-6 py-3 sm:py-4">
                       <div className="flex items-center">
-                        <DollarSign className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-green-500 mr-0.5 sm:mr-1" />
                         <span className="text-xs sm:text-sm font-medium text-gray-900">
                           {formatPrice(service.price)}
                         </span>

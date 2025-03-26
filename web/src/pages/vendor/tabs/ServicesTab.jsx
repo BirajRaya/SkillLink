@@ -85,36 +85,66 @@ const ServicesTab = ({
     setIsEditServiceModalOpen(true);
   };
 
+  // const handleDelete = async (id) => {
+  //   if (window.confirm("Are you sure you want to delete this service?")) {
+  //     try {
+  //       const response = await api.delete(`/services/delete-service/${id}`);
+  //       if (response.status === 200) {
+  //         fetchServices();
+  //         toast({
+  //           title: "Success",
+  //           description: `Service has been deleted successfully`,
+  //           variant: "success",
+  //           className:
+  //             "bg-green-500 text-white font-medium border-l-4 border-green-700",
+  //         });
+  //       }
+  //     } catch (error) {
+  //       console.error("Error deleting service:", error);
+  //       const errorMsg =
+  //         error.response?.data?.message || "Error deleting service";
+
+  //       toast({
+  //         title: "Error",
+  //         description: errorMsg,
+  //         variant: "destructive",
+  //         className:
+  //           "bg-red-500 text-white font-medium border-l-4 border-red-700",
+  //       });
+  //     }
+  //   }
+  // };
+
   const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete this service?")) {
       try {
         const response = await api.delete(`/services/delete-service/${id}`);
         if (response.status === 200) {
-          fetchServices();
+          // Immediately remove the deleted service from the local state
+          setServices(prevServices => 
+            prevServices.filter(service => service.id !== id)
+          );
+          
           toast({
             title: "Success",
             description: `Service has been deleted successfully`,
             variant: "success",
-            className:
-              "bg-green-500 text-white font-medium border-l-4 border-green-700",
+            className: "bg-green-500 text-white font-medium border-l-4 border-green-700",
           });
         }
       } catch (error) {
         console.error("Error deleting service:", error);
-        const errorMsg =
-          error.response?.data?.message || "Error deleting service";
-
+        const errorMsg = error.response?.data?.message || "Error deleting service";
+  
         toast({
           title: "Error",
           description: errorMsg,
           variant: "destructive",
-          className:
-            "bg-red-500 text-white font-medium border-l-4 border-red-700",
+          className: "bg-red-500 text-white font-medium border-l-4 border-red-700",
         });
       }
     }
   };
-
   const [errors, setErrors] = useState({
     serviceName: "",
     description: "",
