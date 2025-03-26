@@ -87,12 +87,14 @@ router.get("/getChat/:user1/:user2", async (req, res) => {
     const { user1, user2 } = req.params;
     const cacheKey = `chat:${user1}:${user2}`;
     const cacheKey2 = `chat:${user2}:${user1}`;
+    const startTime = Date.now();
 
     try {  
         const cachedMessages = await redisClient.get(cacheKey);
 
         if (cachedMessages) {
-            console.log("Cache Hit! Serving messages from Redis...");
+          const endTime = Date.now();
+          console.log(`CACHE HIT: Serving messages from Redis in ${endTime - startTime}ms`);
             
             // Mark messages as read when fetching chat
             const unreadKey = `unread:${user1}`;
@@ -101,7 +103,8 @@ router.get("/getChat/:user1/:user2", async (req, res) => {
             return res.json(JSON.parse(cachedMessages));
         }   
 
-        console.log("Cache Miss! Fetching messages from PostgreSQL...");
+        console.log("CACHE MISS: Fetching messages from PostgreSQL...");
+        const dbStartTime = Date.now();
 
         // Find existing chat
         let chat = await pool.query(
@@ -121,6 +124,9 @@ router.get("/getChat/:user1/:user2", async (req, res) => {
             [chatId]
         );
 
+        const dbEndTime = Date.now();
+        console.log(`DB QUERY: Fetched messages from PostgreSQL in ${dbEndTime - dbStartTime}ms`);
+
         // Store data in redis cache for one hour
         await redisClient.setEx(cacheKey, 3600, JSON.stringify(messages.rows));
         await redisClient.setEx(cacheKey2, 3600, JSON.stringify(messages.rows));
@@ -128,6 +134,9 @@ router.get("/getChat/:user1/:user2", async (req, res) => {
         // Mark messages as read when fetching chat
         const unreadKey = `unread:${user1}`;
         await redisClient.hDel(unreadKey, user2);
+
+        const totalEndTime = Date.now();
+        console.log(`TOTAL REQUEST TIME: ${totalEndTime - startTime}ms`);
 
         res.json(messages.rows);
     } catch (error) {

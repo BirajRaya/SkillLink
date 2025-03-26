@@ -299,7 +299,7 @@ const Dashboard = () => {
               </CardHeader>
               <CardContent className="p-0 md:p-1">
                 <div className="responsive-table-wrapper overflow-x-auto">
-                  <table className="w-full min-w-[500px]"> {/* Min width prevents excessive squeezing */}
+                  <table className="w-full min-w-[500px]">
                     <thead>
                       <tr className="border-b">
                         <th className="py-2 px-3 sm:px-4 text-left text-xs font-medium text-gray-500">Activity</th>
@@ -443,7 +443,7 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent className="p-0 md:p-1">
               <div className="responsive-table-wrapper overflow-x-auto">
-                <table className="w-full min-w-[600px]"> {/* Min width prevents excessive squeezing */}
+                <table className="w-full min-w-[600px]">
                   <thead>
                     <tr className="border-b">
                       <th className="py-2 px-3 sm:px-4 text-left text-xs font-medium text-gray-500">Vendor</th>

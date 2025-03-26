@@ -12,18 +12,12 @@ import {
   Camera,
   Mail,
   Phone,
-  Calendar,
-  RefreshCcw
+  Calendar
 } from "lucide-react";
 import api from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
+import { Eye, EyeOff } from "lucide-react";
+
 
 const Users = () => {
   // State Management
@@ -37,6 +31,7 @@ const Users = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [formModalError, setFormModalError] = useState('');
   const [loadedImages, setLoadedImages] = useState({});
+  const [showPassword, setShowPassword] = useState(false);
   const { toast } = useToast();
 
   // Pagination
@@ -1148,30 +1143,42 @@ const Users = () => {
                   {formErrors.email && <p className="mt-1 text-xs text-red-500">{formErrors.email}</p>}
                 </div>
 
-                <div className="col-span-1">
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                    Password (Leave blank to keep current)
-                  </label>
-                  <input
-                    type="password"
-                    id="password"
-                    className={`w-full px-3 py-2 sm:py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${formErrors.password ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
-                    value={userForm.password}
-                    onChange={(e) => {
-                      handleInputChange(e);
-                      if (formErrors.password) setFormErrors({...formErrors, password: ''});
-                    }}
-                    onBlur={() => {
-                      if (userForm.password && userForm.password.length < 7) {
-                        setFormErrors(prev => ({...prev, password: 'Password must be at least 7 characters'}));
-                      } else {
-                        setFormErrors(prev => ({...prev, password: ''}));
-                      }
-                    }}
-                    placeholder="Enter new password (optional)"
-                  />
-                  {formErrors.password && <p className="mt-1 text-xs text-red-500">{formErrors.password}</p>}
-                </div>
+                <div className="col-span-1 relative">
+      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+        Password (Leave blank to keep current)
+      </label>
+      <div className="relative">
+        <input
+          type={showPassword ? "text" : "password"}
+          id="password"
+          className={`w-full px-3 py-2 sm:py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
+            formErrors.password ? "border-red-500 bg-red-50" : "border-gray-300"
+          }`}
+          value={userForm.password}
+          onChange={(e) => {
+            handleInputChange(e);
+            if (formErrors.password) setFormErrors({ ...formErrors, password: "" });
+          }}
+          onBlur={() => {
+            if (userForm.password && userForm.password.length < 7) {
+              setFormErrors((prev) => ({ ...prev, password: "Password must be at least 7 characters" }));
+            } else {
+              setFormErrors((prev) => ({ ...prev, password: "" }));
+            }
+          }}
+          placeholder="Enter new password (optional)"
+        />
+        {/* Eye Toggle Button */}
+        <button
+          type="button"
+          className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700"
+          onClick={() => setShowPassword((prev) => !prev)}
+        >
+          {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+        </button>
+      </div>
+      {formErrors.password && <p className="mt-1 text-xs text-red-500">{formErrors.password}</p>}
+    </div>
 
                 <div className="col-span-1">
                   <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Phone Number*</label>

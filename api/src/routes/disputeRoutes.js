@@ -35,6 +35,28 @@ router.post("/create", async (req, res) => {
     }
 });
 
+// Check if a dispute exists for a given booking_id
+router.get("/check/:booking_id", async (req, res) => {
+    try {
+        const { booking_id } = req.params;
+        
+        // Query database for dispute related to the given booking_id
+        const dispute = await pool.query(
+            `SELECT * FROM dispute WHERE booking_id = $1`,
+            [booking_id]
+        );
+        
+        if (dispute.rows.length > 0) {
+            res.status(200).json({ exists: true, dispute: dispute.rows[0] });
+        } else {
+            res.status(200).json({ exists: false, message: "No dispute found for this booking." });
+        }
+    } catch (err) {
+        console.error("Error checking dispute:", err.message);
+        res.status(500).json({ error: "Server error" });
+    }
+});
+
 // Get disputes for the logged-in user (Supports pagination and filtering by status)
 router.get("/user", async (req, res) => {
     try {

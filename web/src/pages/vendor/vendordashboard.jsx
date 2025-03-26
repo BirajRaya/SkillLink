@@ -194,26 +194,33 @@ const VendorDashboard = () => {
         const response = await axios.get(`http://localhost:5000/vendors/getAvailability/${currentUser.id}`);
         if (response.data) {
           setAvailabilityData(response.data);
-          setMainAvailabilityData(response.data)
-          // setHasFilledAvailability(true);
+          setMainAvailabilityData(response.data);
+          setHasFilledAvailability(true);
         } else {
           // If no availability data found, show the form
           setShowAvailabilityForm(true);
           setHasFilledAvailability(false);
         }
       } catch (error) {
-        console.error("Error checking availability:", error);
-        const errorMessage = error.response?.data?.message || error.message || "Failed to fetch availability data.";
+        // Check if error is specifically a 404 (not found) or availability-related error
+        if (error.response && (error.response.status === 404 || 
+            error.response.data?.message?.includes('availability'))) {
+          console.log('Availability not set yet for this vendor');
+        } else {
+          // Log only if it's a real error, not just missing availability
+          console.error('network error:', error);
+          toast({
+            title: "Error",
+            description: "network error.",
+            variant: "destructive", // Red background
+            className: "bg-red-500 text-white font-medium border-l-4 border-red-700"
+          });
 
-        // If error (likely no availability set), show the form
+        }
+        
+        // In both cases, show the form
         setShowAvailabilityForm(true);
         setHasFilledAvailability(false);
-        toast({
-          title: "Error",
-          description: errorMessage,
-          variant: "destructive", // Red background
-          className: "bg-red-500 text-white font-medium border-l-4 border-red-700"
-        });
       }
     };
 
