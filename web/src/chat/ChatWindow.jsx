@@ -16,6 +16,7 @@ export default function ChatWindow({ senderId, receiver }) {
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
   const isMounted = useRef(true);
   const receiverId = receiver.id;
   const receiverName = receiver.name;
@@ -89,7 +90,14 @@ export default function ChatWindow({ senderId, receiver }) {
   
   // Scroll to bottom when messages change
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    // Use requestAnimationFrame to ensure DOM updates before scrolling
+    if (messages.length > 0) {
+      requestAnimationFrame(() => {
+        if (messagesContainerRef.current) {
+          messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+        }
+      });
+    }
   }, [messages]);
 
   const sendMessage = async () => {
@@ -159,7 +167,7 @@ export default function ChatWindow({ senderId, receiver }) {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3">
         {loading ? (
           <div className="flex flex-col items-center justify-center h-full space-y-4">
             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>

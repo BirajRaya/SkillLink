@@ -50,6 +50,7 @@ const MyBookings = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [activeTab, setActiveTab] = useState("all");
   const [reviewStatus, setReviewStatus] = useState({});
+  const [disputeStatus, setDisputeStatus] = useState({}); // Add this new state
   const [reviewForms, setReviewForms] = useState({});
   const [disputeForms, setDisputeForms] = useState({});
   const [reviewData, setReviewData] = useState({});
@@ -59,6 +60,7 @@ const MyBookings = () => {
   const reviewTextareaRefs = useRef({});
   const disputeTextareaRefs = useRef({});
   const disputeRefs = useRef({}); 
+  const reviewRefs = useRef({}); // Add this new ref to store review text values
   const itemsPerPage = 5;
   const { currentUser } = useAuth(); // Get current user from auth context
 
@@ -91,6 +93,7 @@ const MyBookings = () => {
         
         // Check for existing reviews for completed bookings
         checkReviewStatus(response.data.bookings);
+        checkDisputeStatus(response.data.bookings); // Add this new check
       } else {
         console.error('Unexpected response format:', response.data);
         setError('Invalid response format from server');
@@ -141,6 +144,40 @@ const MyBookings = () => {
       console.error("Error checking review status:", error);
     }
   };
+
+  // Add this new function to check if a booking has been disputed
+  const checkDisputeStatus = async (bookingsList) => {
+    try {
+        const completedBookings = bookingsList.filter(booking => 
+            booking.status?.toLowerCase() === 'completed'
+        );
+
+        if (completedBookings.length === 0) return;
+
+        let disputeStatusObj = {};
+
+        // Use Promise.all to perform API calls concurrently
+        await Promise.all(completedBookings.map(async (booking) => {
+            try {
+                const response = await api.get(`/disputes/check/${booking.id}`);
+                
+                console.log(`Dispute check for booking ${booking.id}:`, response.data);
+
+                // Check for 'exists' property in API response
+                disputeStatusObj[booking.id] = response.data?.exists ?? (booking.status?.toLowerCase() === 'disputed');
+            } catch (error) {
+                console.error(`Error checking dispute for booking ${booking.id}:`, error);
+                disputeStatusObj[booking.id] = booking.status?.toLowerCase() === 'disputed';
+            }
+        }));
+
+        setDisputeStatus(disputeStatusObj);
+
+    } catch (error) {
+        console.error("Error checking dispute status:", error);
+    }
+};
+
   
   // Handle showing the review form for a specific booking
   const handleShowReviewForm = (bookingId) => {
@@ -228,24 +265,25 @@ const MyBookings = () => {
   // Handle review comment change
   const handleCommentChange = (bookingId, event) => {
     const newValue = event.target.value;
-    const textareaRef = reviewTextareaRefs.current[bookingId];
     
-    // if (!reviewDataRef.current[bookingId]) {
-    //   reviewDataRef.current[bookingId] = {};
-    // }
-    // reviewDataRef.current[bookingId].comment = newValue;
+    // Store locally in ref (prevents rerendering)
+    if (reviewRefs.current[bookingId]) {
+      reviewRefs.current[bookingId].value = newValue;
+    }
+  };
 
+  // Add new handler for review text blur
+  const handleReviewBlur = (bookingId) => {
+    const newValue = reviewRefs.current[bookingId]?.value;
+
+    // Update state only when needed (onBlur, not on every keystroke)
     setReviewData(prev => ({
       ...prev,
       [bookingId]: {
-        ...prev[bookingId],
-        comment: newValue
+        ...(prev[bookingId] || {}),
+        comment: newValue || ''
       }
     }));
-
-    if (textareaRef) {
-      updateTextFieldWithCursor(textareaRef, newValue);
-    }
   };
 
   // Handle dispute description change
@@ -341,7 +379,7 @@ const MyBookings = () => {
         service_id: booking.service_id,
         booking_id: booking.id,
         rating: reviewData[booking.id]?.rating || 5,
-        comment: reviewDataRef.current[booking.id]?.comment || ''
+        comment: reviewRefs.current[booking.id]?.value || '' // Get comment from ref instead
       };
       
       
@@ -444,6 +482,12 @@ const MyBookings = () => {
           title: "Dispute Submitted",
           description: "Your dispute has been submitted and will be reviewed by our team."
         });
+        
+        // Update dispute status to show the booking has been disputed
+        setDisputeStatus(prev => ({
+          ...prev,
+          [booking.id]: true
+        }));
         
         // Close the dispute form
         handleCloseDisputeForm(booking.id);
@@ -641,6 +685,22 @@ const MyBookings = () => {
     const isCompletedRejectedCancelled = ['completed', 'rejected', 'cancelled'].includes(status);
     const isCompleted = status === 'completed';
     const hasReview = reviewStatus[booking.id];
+    
+    // Add explicit debugging to check dispute status values
+    const isDisputed = disputeStatus[booking.id] === true;
+    const statusIsDisputed = status === 'disputed';
+    
+    // Fix the hasDispute determination by being more explicit
+    const hasDispute = Boolean(disputeStatus[booking.id]) || status === 'disputed';
+    
+    // Add debugging to console to verify the dispute status
+    console.log(`Booking ${booking.id} - Dispute status:`, {
+      disputeStateValue: disputeStatus[booking.id],
+      isDisputed,
+      statusIsDisputed,
+      hasDispute
+    });
+
     const showReviewForm = reviewForms[booking.id];
     const showDisputeForm = disputeForms[booking.id];
   
@@ -683,9 +743,16 @@ const MyBookings = () => {
             <div className="mb-3">
               <label className="block text-sm font-medium mb-1">Your Feedback:</label>
               <Textarea 
-                ref={el => reviewTextareaRefs.current[booking.id] = el}
-                defaultValue=""
+                ref={(el) => {
+                  if (el) {
+                    if (!reviewTextareaRefs.current) reviewTextareaRefs.current = {};
+                    reviewTextareaRefs.current[booking.id] = el;
+                    reviewRefs.current[booking.id] = el; // Store reference
+                  }
+                }}
+                defaultValue={reviewData[booking.id]?.comment || ''}
                 onChange={(e) => handleCommentChange(booking.id, e)}
+                onBlur={() => handleReviewBlur(booking.id)}
                 placeholder="Share your experience with this service..." 
                 rows={3} 
                 disabled={submittingReview === booking.id}
@@ -849,10 +916,8 @@ const MyBookings = () => {
           </span>
         )}
         
-
-        
-        {/* Dispute button */}
-        {!showDisputeForm && (
+        {/* Dispute button - only show if not already disputed */}
+        {!hasDispute && !showDisputeForm && (
           <Button
             variant="outline"
             size="sm"
@@ -862,6 +927,14 @@ const MyBookings = () => {
             <AlertTriangle className="h-4 w-4" />
             Dispute
           </Button>
+        )}
+        
+        {/* Show "Disputed" text if dispute exists */}
+        {hasDispute && (
+          <span className="text-orange-600 text-sm flex items-center">
+            <CheckCircle2 className="h-4 w-4 mr-1" />
+            Disputed
+          </span>
         )}
       </>
     )}
@@ -916,14 +989,11 @@ const MyBookings = () => {
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-md p-6 text-center my-4">
-        <AlertCircle className="h-10 w-10 text-red-500 mx-auto mb-4" />
-        <h3 className="text-lg font-semibold mb-2">Failed to load bookings</h3>
-        <p className="text-red-600">{error}</p>
-        <Button 
-          className="mt-4"
-          onClick={fetchBookings}
-        >
+      <div class="bg-red-50 border border-red-200 rounded-md p-6 text-center my-4">
+        <AlertCircle class="h-10 w-10 text-red-500 mx-auto mb-4" />
+        <h3 class="text-lg font-semibold mb-2">Failed to load bookings</h3>
+        <p class="text-red-600">{error}</p>
+        <Button class="mt-4" onClick={fetchBookings}>
           Try Again
         </Button>
       </div>
